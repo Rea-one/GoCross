@@ -4,12 +4,11 @@ type Workers interface {
 	Start()
 	Stop()
 	Wait()
-	Init(host string, dom string, database string, password string)
+	Init(CImess)
 }
 
 type workers struct {
-	host     string
-	dom      string
-	database string
-	password string
+	rec   CImess
+	conn  PGconn
+	group []worker
 }
