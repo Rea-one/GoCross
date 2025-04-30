@@ -7,9 +7,16 @@ type DeMess interface {
 type MessQue interface {
 	Write(message string)
 	Read() *string
+	Finish() bool
+	Inish() bool
+	Onish() bool
+	IClose()
+	OClose()
 }
 
 type messque struct {
+	inish     bool
+	onish     bool
 	in_chan_  chan *string
 	out_chan_ chan *string
 	queue_    []string
@@ -26,4 +33,24 @@ func (tar *messque) Write(message string) {
 
 func (tar *messque) Read() *string {
 	return <-tar.out_chan_
+}
+
+func (tar *messque) Finish() bool {
+	return tar.inish && tar.onish
+}
+
+func (tar *messque) Inish() bool {
+	return tar.inish
+}
+
+func (tar *messque) Onish() bool {
+	return tar.onish
+}
+
+func (tar *messque) IClose() {
+	tar.inish = true
+}
+
+func (tar *messque) OClose() {
+	tar.onish = true
 }

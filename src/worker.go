@@ -11,12 +11,12 @@ type Worker interface {
 	Start()
 	Stop()
 	Wait()
-	Init(*pgxpool.Conn)
+	Init(*pgxpool.Conn, *messque)
 }
 
 type worker struct {
 	stop_     chan bool
-	messages_ chan []string
+	messages_ *messque
 	link_     *pgxpool.Conn
 }
 
@@ -26,11 +26,20 @@ func (tar *worker) Start() {
 		case <-tar.stop_:
 			return
 		default:
-			select {
-			case message := <-tar.messages_:
-				tar.link_.QueryRow(context.Background(), message[0], message[1])
-			default:
-				time.Sleep(time.Second)
+			for {
+				if tar.messages_ != nil {
+					message := tar.messages_.Read()
+					if message != nil {
+						tar.link_.Query(context.Background(), *message)
+					}
+					if tar.messages_.Inish() {
+						tar.messages_.OClose()
+						tar.messages_ = nil
+					}
+				} else {
+					time.Sleep(time.Millisecond * 100)
+				}
+
 			}
 		}
 	}()
@@ -44,8 +53,8 @@ func (tar *worker) Wait() {
 
 }
 
-func (tar *worker) Init(link *pgxpool.Conn) {
+func (tar *worker) Init(link *pgxpool.Conn, messages *messque) {
 	tar.stop_ = make(chan bool)
-	tar.messages_ = make(chan []string)
+	tar.messages_ = messages
 	tar.link_ = link
 }

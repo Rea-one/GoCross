@@ -11,7 +11,7 @@ type Workers interface {
 	Start()
 	Stop()
 	Wait()
-	Init(cimess)
+	Init(cimess, *demess)
 }
 
 type workers struct {
@@ -22,10 +22,9 @@ type workers struct {
 }
 
 func (tar *workers) Start() {
-	var conn *pgxpool.Conn
+	// var conn *pgxpool.Conn
 	for _, w := range tar.group_ {
-		conn, _ = tar.conn_pool_.Acquire(context.Background())
-		w.Init(conn)
+		// conn, _ = tar.conn_pool_.Acquire(context.Background())
 		go w.Start()
 	}
 
@@ -43,7 +42,7 @@ func (tar *workers) Wait() {
 	}
 }
 
-func (tar *workers) Init(mess cimess) {
+func (tar *workers) Init(mess cimess, dem *demess) {
 	var err error
 	tar.rec_, err = pgxpool.ParseConfig(mess.String())
 	if err != nil {
@@ -57,4 +56,5 @@ func (tar *workers) Init(mess cimess) {
 	if err != nil {
 		os.Exit(1)
 	}
+	tar.mess_ = dem
 }
