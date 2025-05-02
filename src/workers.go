@@ -12,7 +12,7 @@ type Workers interface {
 	Start()
 	Stop()
 	Wait()
-	Init(cimess, chan *mess)
+	Init(cimess, chan *task)
 }
 
 type workers struct {
@@ -20,7 +20,7 @@ type workers struct {
 	conn_pool_ *pgxpool.Pool
 	group_     [4]*worker
 	pmess_     []chan *task
-	mess_      chan *task
+	mess_      chan *Task
 }
 
 func (tar *workers) Start() {
@@ -57,7 +57,7 @@ func (tar *workers) Wait() {
 	}
 }
 
-func (tar *workers) Init(mess cimess, m chan chan *mess) {
+func (tar *workers) Init(mess cimess, m chan *task) {
 	config, _ := pgxpool.ParseConfig(mess.String())
 
 	cpuNum := int32(runtime.NumCPU())
