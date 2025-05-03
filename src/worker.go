@@ -12,14 +12,16 @@ type Worker interface {
 	Start()
 	Stop()
 	Wait()
-	Init(*pgxpool.Conn, *messque)
+	Init(int, *pgxpool.Conn, chan task, chan task, chan int)
 }
 
 type worker struct {
-	stop_   chan bool
-	task_   <-chan *task
-	output_ chan<- *task
-	link_   *pgxpool.Conn
+	id_      int
+	stop_    chan bool
+	input_   <-chan task
+	output_  chan<- task
+	link_    *pgxpool.Conn
+	pick_up_ chan<- int
 }
 
 func (tar *worker) Start() {
@@ -30,7 +32,7 @@ func (tar *worker) Start() {
 				return
 			default:
 				select {
-				case task := <-tar.task_:
+				case task := <-tar.input_:
 					rows, err := tar.link_.Query(context.Background(), task.Query)
 					if err != nil {
 						task.Result = err.Error()
@@ -53,10 +55,13 @@ func (tar *worker) Wait() {
 
 }
 
-func (tar *worker) Init(link *pgxpool.Conn, t chan *task) {
+func (tar *worker) Init(id int, link *pgxpool.Conn,
+	it chan task, ot chan task, pick chan int) {
+	tar.id_ = id
 	tar.stop_ = make(chan bool)
 	tar.link_ = link
-	tar.task_ = t
+	tar.input_ = it
+	tar.output_ = ot
 }
 
 func processRows(rows pgx.Rows) string {

@@ -6,24 +6,28 @@ import (
 )
 
 type Listener interface {
-	Init()
+	Init(chan task, chan task)
 	Start()
 	Stop()
 }
 
 type listener struct {
 	address_   string
-	receivers_ MList
+	receivers_ *mList[receiver]
 	wait_req_  chan []bool
 	quit_      chan struct{}
 	listener_  net.Listener
+	ipasser_   chan task
+	opasser_   chan task
 	current_rs int
 	max_rs_    int
 }
 
-func (tar *listener) Init() {
+func (tar *listener) Init(ip chan task, op chan task) {
 	tar.current_rs = 0
 	tar.max_rs_ = 4
+	tar.ipasser_ = ip
+	tar.opasser_ = op
 }
 
 func (tar *listener) Start() {
@@ -56,12 +60,12 @@ func (tar *listener) Start() {
 				// 创建接收者
 				var rcv receiver
 				rcv.Init(conn)
-				var node mListNode
+				var node mListNode[receiver]
 				node.Init(rcv)
 				go rcv.Start()
 
 				// 添加接收者到链表
-				tar.receivers_.Push(&node)
+				tar.receivers_.Push_tail(&node)
 			}
 		}
 	}()

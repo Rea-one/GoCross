@@ -12,33 +12,41 @@ type Workers interface {
 	Start()
 	Stop()
 	Wait()
-	Init(cimess, chan *task)
+	Init(*cimess, chan task, chan task)
 }
 
 type workers struct {
 	rec_       *pgxpool.Config
 	conn_pool_ *pgxpool.Pool
-	group_     [4]*worker
-	pmess_     []chan *task
-	mess_      chan *Task
+	group_     *mList[worker]
+	pick_up_   chan int
+	omess_     chan task
+	imess_     chan task
+	ipasser_   chan task
+	opasser_   chan task
 }
 
 func (tar *workers) Start() {
-	for _, w := range tar.group_ {
+	var id int = 0
+	w := tar.group_.Till()
+	for w != nil {
 		conn, _ := tar.conn_pool_.Acquire(context.Background())
-		cur_task := make(chan *task)
-		tar.pmess_ = append(tar.pmess_, cur_task)
-		w.Init(conn, cur_task)
-		w.Start()
+		w.Get().Init(id, conn, tar.imess_, tar.omess_, tar.pick_up_)
+		w.Get().Start()
+		w = w.Till()
+		id++
 	}
-	var order int = 0
+
 	for {
 		select {
-		case tasks := <-tar.mess_:
-			if order < len(tar.pmess_) {
-				tar.pmess_[order] <- tasks
-				order = (order + 1) % len(tar.pmess_)
-			}
+		case task := <-tar.ipasser_:
+
+		default:
+			time.Sleep(time.Millisecond * 100)
+		}
+		select {
+		case task := <-tar.omess_:
+
 		default:
 			time.Sleep(time.Millisecond * 100)
 		}
@@ -57,7 +65,7 @@ func (tar *workers) Wait() {
 	}
 }
 
-func (tar *workers) Init(mess cimess, m chan *task) {
+func (tar *workers) Init(mess *cimess, ip chan task, op chan task) {
 	config, _ := pgxpool.ParseConfig(mess.String())
 
 	cpuNum := int32(runtime.NumCPU())
@@ -65,5 +73,9 @@ func (tar *workers) Init(mess cimess, m chan *task) {
 	config.MaxConns = cpuNum * 4 // 动态调整
 	config.MinConns = cpuNum * 2
 
-	tar.mess_ = m
+	tar.imess_ = make(chan task)
+	tar.omess_ = make(chan task)
+
+	tar.ipasser_ = ip
+	tar.opasser_ = op
 }

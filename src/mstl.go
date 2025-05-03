@@ -1,28 +1,32 @@
 package main
 
-type MListNode interface {
+type MListNode[T any] interface {
 	Init(receiver)
 	Move_tail()
-	B_next() *mListNode
+	B_next() *mListNode[T]
 	Move_head()
-	F_next() *mListNode
-	To_back(*mListNode)
-	To_fore(*mListNode)
-	Get() *receiver
+	F_next() *mListNode[T]
+	To_back(*mListNode[T])
+	To_fore(*mListNode[T])
+	Get() *T
+	Empty() bool
+	Till() *mListNode[T]
+	F_till() *mListNode[T]
+	B_till() *mListNode[T]
 }
 
-type mListNode struct {
-	fore *mListNode
-	back *mListNode
-	data receiver
+type mListNode[T any] struct {
+	fore *mListNode[T]
+	back *mListNode[T]
+	data T
 }
 
-func (tar *mListNode) Init(data receiver) {
+func (tar *mListNode[T]) Init(data T) {
 	tar.data = data
 
 }
 
-func (tar *mListNode) Move_tail() {
+func (tar *mListNode[T]) Move_tail() {
 	_cursor_ := tar
 	for tar.back != nil {
 		tar = tar.back
@@ -34,11 +38,11 @@ func (tar *mListNode) Move_tail() {
 	tar = _cursor_
 }
 
-func (tar *mListNode) B_next() *mListNode {
+func (tar *mListNode[T]) B_next() *mListNode[T] {
 	return tar.back
 }
 
-func (tar *mListNode) Move_head() {
+func (tar *mListNode[T]) Move_head() {
 	_cursor_ := tar
 	for tar.fore != nil {
 		tar = tar.fore
@@ -50,18 +54,38 @@ func (tar *mListNode) Move_head() {
 	tar = _cursor_
 }
 
-func (tar *mListNode) F_next() *mListNode {
+func (tar *mListNode[T]) F_next() *mListNode[T] {
 	return tar.fore
 }
 
-func (tar *mListNode) To_back(node *mListNode) {
+func (tar *mListNode[T]) To_back(node *mListNode[T]) {
 	tar.back = node
 }
 
-func (tar *mListNode) To_fore(node *mListNode) {
+func (tar *mListNode[T]) To_fore(node *mListNode[T]) {
 	tar.fore = node
 }
 
-func (tar *mListNode) Get() *receiver {
+func (tar *mListNode[T]) Get() *T {
 	return &tar.data
+}
+
+func (tar *mListNode[T]) Empty() bool {
+	return tar.back == nil && tar.fore == nil
+}
+
+func (tar *mListNode[T]) F_till() *mListNode[T] {
+	result := tar
+	tar = tar.fore
+	return result
+}
+
+func (tar *mListNode[T]) B_till() *mListNode[T] {
+	result := tar
+	tar = tar.back
+	return result
+}
+
+func (tar *mListNode[T]) Till() *mListNode[T] {
+	return tar.B_till()
 }
