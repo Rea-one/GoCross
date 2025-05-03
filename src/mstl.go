@@ -8,7 +8,7 @@ type MListNode[T any] interface {
 	F_next() *mListNode[T]
 	To_back(*mListNode[T])
 	To_fore(*mListNode[T])
-	Get() *T
+	Get() T
 	Empty() bool
 	Till() *mListNode[T]
 	F_till() *mListNode[T]
@@ -66,8 +66,8 @@ func (tar *mListNode[T]) To_fore(node *mListNode[T]) {
 	tar.fore = node
 }
 
-func (tar *mListNode[T]) Get() *T {
-	return &tar.data
+func (tar *mListNode[T]) Get() T {
+	return tar.data
 }
 
 func (tar *mListNode[T]) Empty() bool {

@@ -12,27 +12,28 @@ type Worker interface {
 	Start()
 	Stop()
 	Wait()
+	Change(chan task, chan task)
 	Init(int, *pgxpool.Conn, chan task, chan task, chan int)
 }
 
 type worker struct {
 	id_      int
-	stop_    chan bool
+	stop_    bool
 	input_   <-chan task
 	output_  chan<- task
 	link_    *pgxpool.Conn
-	pick_up_ chan<- int
+	release_ chan<- int
 }
 
 func (tar *worker) Start() {
 	go func() {
 		for {
-			select {
-			case tar.stop_ <- true:
-				return
-			default:
+			if !tar.stop_ {
 				select {
 				case task := <-tar.input_:
+					if task.Result == "close" {
+						break
+					}
 					rows, err := tar.link_.Query(context.Background(), task.Query)
 					if err != nil {
 						task.Result = err.Error()
@@ -44,11 +45,11 @@ func (tar *worker) Start() {
 				}
 			}
 		}
+
 	}()
 }
 
 func (tar *worker) Stop() {
-	tar.stop_ <- true
 }
 
 func (tar *worker) Wait() {
@@ -56,12 +57,13 @@ func (tar *worker) Wait() {
 }
 
 func (tar *worker) Init(id int, link *pgxpool.Conn,
-	it chan task, ot chan task, pick chan int) {
+	it chan task, ot chan task, rsl chan int) {
 	tar.id_ = id
-	tar.stop_ = make(chan bool)
+	tar.stop_ = false
 	tar.link_ = link
 	tar.input_ = it
 	tar.output_ = ot
+	tar.release_ = rsl
 }
 
 func processRows(rows pgx.Rows) string {
@@ -72,4 +74,9 @@ func processRows(rows pgx.Rows) string {
 		result += row
 	}
 	return result
+}
+
+func (tar *worker) Change(it chan task, ot chan task) {
+	tar.input_ = it
+	tar.output_ = ot
 }

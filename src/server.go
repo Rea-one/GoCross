@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 type Server interface {
 	Init()
@@ -8,10 +10,10 @@ type Server interface {
 }
 
 type server struct {
-	listener Listener
-	workers  Workers
-	ipasser_ chan task
-	opasser_ chan task
+	listener listener
+	manager  manager
+	iomap_   *iomap
+	signal_  chan string
 	pgconfig *cimess
 }
 
@@ -22,12 +24,12 @@ func (tar *server) Init() {
 		host_:      "localhost",
 		password_:  "123456",
 	}
-	tar.listener.Init(tar.ipasser_, tar.opasser_)
-	tar.workers.Init(tar.pgconfig, tar.ipasser_, tar.opasser_)
+	tar.listener.Init(tar.signal_, tar.iomap_)
+	tar.manager.Init(tar.signal_, tar.iomap_, tar.pgconfig)
 }
 
 func (tar *server) Start() {
-	go tar.workers.Start()
+	go tar.manager.Start()
 	go tar.listener.Start()
 	for {
 		time.Sleep(time.Second)

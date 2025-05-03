@@ -6,7 +6,7 @@ import (
 )
 
 type Listener interface {
-	Init(chan task, chan task)
+	Init(chan task, *iomap)
 	Start()
 	Stop()
 }
@@ -14,24 +14,24 @@ type Listener interface {
 type listener struct {
 	rcv_id_pool_ mQueue[int]
 	address_     string
-	receivers_   *mList[receiver]
-	wait_req_    chan []bool
-	release_     chan int
+	receivers_   *mList[*receiver]
+	rcv_map_     *map[int]*mListNode[*receiver]
+	io_map_      *iomap
 	quit_        chan struct{}
 	listener_    net.Listener
-	ipasser_     chan task
-	opasser_     chan task
+	release_     chan int
+	signal_      chan string
 	current_rs   int
 	max_rs_      int
 }
 
-func (tar *listener) Init(ip chan task, op chan task) {
+func (tar *listener) Init(signal chan string, iom *iomap) {
 	tar.current_rs = 0
 	tar.max_rs_ = 4
-	tar.ipasser_ = ip
-	tar.opasser_ = op
+	tar.signal_ = signal
+	tar.io_map_ = iom
 	tar.rcv_id_pool_.Init()
-	for i := 0; i < tar.max_rs_; i++ {
+	for i := range tar.max_rs_ {
 		tar.rcv_id_pool_.Push(i)
 	}
 }
@@ -63,15 +63,33 @@ func (tar *listener) Start() {
 					continue
 				}
 
+				IP := conn.RemoteAddr().String()
+				id := tar.rcv_id_pool_.The()
+				tar.signal_ <- IP
+				tar.rcv_id_pool_.Pop()
+				tar.io_map_.Register(IP)
 				// 创建接收者
 				var rcv receiver
-				rcv.Init(conn, tar.ipasser_, tar.opasser_)
-				var node mListNode[receiver]
-				node.Init(rcv)
+				rcv.Init(id, conn,
+					tar.io_map_.GetIn(IP), tar.io_map_.GetOut(IP))
+				var node mListNode[*receiver]
+				node.Init(&rcv)
+				(*tar.rcv_map_)[id] = &node
 				rcv.Start()
-
 				// 添加接收者到链表
 				tar.receivers_.Push_tail(&node)
+				tar.current_rs++
+			}
+			select {
+			case rls := <-tar.release_:
+				IP := (*tar.rcv_map_)[rls].Get().GetIP()
+				tar.io_map_.Erase(IP)
+				tar.rcv_id_pool_.Push(rls)
+				tar.receivers_.Delete((*tar.rcv_map_)[rls])
+				delete((*tar.rcv_map_), rls)
+				tar.current_rs--
+			default:
+
 			}
 		}
 	}()

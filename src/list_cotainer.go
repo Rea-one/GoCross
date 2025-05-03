@@ -12,6 +12,10 @@ type MList[T any] interface {
 	F_till() *mListNode[T]
 	B_till() *mListNode[T]
 	tar() *T
+
+	Move_head(*mListNode[T])
+	Move_tail(*mListNode[T])
+	Delete(*mListNode[T])
 }
 
 type mList[T any] struct {
@@ -88,4 +92,32 @@ func (tar *mList[T]) B_till() *mListNode[T] {
 	result := tar.cursor
 	tar.cursor = tar.cursor.B_next()
 	return result
+}
+
+func (tar *mList[T]) Move_head(node *mListNode[T]) {
+	if tar.head != node {
+		node.fore.back = node.back
+		tar.head.fore = node
+		node.back = tar.head
+		node.fore = nil
+		tar.head = node
+	}
+}
+
+func (tar *mList[T]) Move_tail(node *mListNode[T]) {
+	if tar.tail != node {
+		node.back.fore = node.fore
+		tar.tail.back = node
+		node.fore = tar.tail
+		node.back = nil
+		tar.tail = node
+	}
+}
+
+func (tar *mList[T]) Delete(node *mListNode[T]) {
+	if node.back != nil {
+		node.back.fore = node.fore
+	} else {
+		tar.head = node.fore
+	}
 }
