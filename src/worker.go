@@ -12,6 +12,7 @@ type Worker interface {
 	Start()
 	Stop()
 	Wait()
+	Action(*task)
 	Change(chan task, chan task)
 	Init(int, *pgxpool.Conn, chan task, chan task, chan int)
 }
@@ -32,6 +33,7 @@ func (tar *worker) Start() {
 				select {
 				case task := <-tar.input_:
 					if task.Result == "close" {
+						tar.Stop()
 						break
 					}
 					rows, err := tar.link_.Query(context.Background(), task.Query)
@@ -50,6 +52,7 @@ func (tar *worker) Start() {
 }
 
 func (tar *worker) Stop() {
+	tar.stop_ = true
 }
 
 func (tar *worker) Wait() {

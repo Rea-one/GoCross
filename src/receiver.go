@@ -8,6 +8,7 @@ import (
 type Receiver interface {
 	Init(int, net.Conn, chan task, chan task)
 	Start()
+	Stop()
 	GetIP() string
 }
 
@@ -67,6 +68,10 @@ func (tar *receiver) write() {
 		task := <-tar.opasser_
 		tar.conn_.Write([]byte(task.Result))
 	}
+}
+
+func (tar *receiver) Stop() {
+	tar.stop_ = true
 }
 
 func (tar *receiver) GetIP() string {

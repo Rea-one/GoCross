@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var server = &server{}
+	var server server
 	server.Init()
 	server.Start()
 }

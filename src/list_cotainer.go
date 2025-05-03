@@ -16,6 +16,8 @@ type MList[T any] interface {
 	Move_head(*mListNode[T])
 	Move_tail(*mListNode[T])
 	Delete(*mListNode[T])
+
+	Init_with_num(int)
 }
 
 type mList[T any] struct {
@@ -119,5 +121,14 @@ func (tar *mList[T]) Delete(node *mListNode[T]) {
 		node.back.fore = node.fore
 	} else {
 		tar.head = node.fore
+	}
+}
+
+func (tar *mList[T]) Init_with_num(num int) {
+	tar.cursor = new(mListNode[T])
+	tar.head = tar.cursor
+	tar.tail = tar.cursor
+	for range num - 1 {
+		tar.Push_tail(&mListNode[T]{})
 	}
 }

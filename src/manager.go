@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"runtime"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -20,46 +22,47 @@ type manager struct {
 
 	conn_pool_ *pgxpool.Pool
 
+	wkr_num_ int
 	workers  *mList[*worker]
 	release_ chan int
 	wkr_map_ *map[int]*mListNode[*worker]
 }
 
 func (tar *manager) Start() {
-	// for id := range tar.workers {
-	// 	conn, _ := tar.conn_pool_.Acquire(context.Background())
-	// 	tar.workers[id].Init(id, conn, tar.imess_, tar.omess_, tar.pick_up_)
-	// 	tar.workers[id].Start()
-	// }
+	tickerFast := time.NewTicker(10 * time.Millisecond)  // 高频轮询间隔
+	tickerSlow := time.NewTicker(100 * time.Millisecond) // 低频等待间隔
+	defer tickerFast.Stop()
+	defer tickerSlow.Stop()
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case task := <-tar.omess_:
-	// 			tar.opasser_ <- task
-	// 		default:
-	// 			time.Sleep(time.Millisecond * 100)
-	// 		}
-	// 	}
-	// }()
-	// for {
-	// 	select {
-	// 	case task := <-tar.ipasser_:
-	// 		tar.imess_ <- task
-	// 	default:
-	// 		time.Sleep(time.Millisecond * 100)
-	// 	}
-	// }
+	useFastPolling := false
+
 	for {
-		select {
-		case IP := <-tar.signal_:
-			now := tar.workers.Head()
-			now.data.Change((*tar.io_map_.imp_)[IP],
-				(*tar.io_map_.omp_)[IP])
-		}
-		select {
-		case rls := <-tar.release_:
-			tar.workers.Move_head((*tar.wkr_map_)[rls])
+		if useFastPolling {
+			select {
+			case IP := <-tar.signal_:
+				now := tar.workers.Head()
+				now.data.Change((*tar.io_map_.imp_)[IP], (*tar.io_map_.omp_)[IP])
+				now.Get().Start()
+				tar.workers.Move_tail(now)
+				tickerFast.Reset(10 * time.Millisecond) // 保持高频
+			case rls := <-tar.release_:
+				tar.workers.Move_head((*tar.wkr_map_)[rls])
+			case <-tickerFast.C:
+				// 继续高频轮询
+			}
+		} else {
+			select {
+			case IP := <-tar.signal_:
+				useFastPolling = true
+				now := tar.workers.Head()
+				now.data.Change((*tar.io_map_.imp_)[IP], (*tar.io_map_.omp_)[IP])
+				now.Get().Start()
+				tar.workers.Move_tail(now)
+			case rls := <-tar.release_:
+				tar.workers.Move_head((*tar.wkr_map_)[rls])
+			case <-tickerSlow.C:
+				// 低频等待，防止空转
+			}
 		}
 	}
 }
@@ -81,4 +84,8 @@ func (tar *manager) Init(signal chan string, iom *iomap, mess *cimess) {
 	config.MinConns = cpuNum * 2
 	tar.io_map_ = iom
 	tar.signal_ = signal
+	tar.conn_pool_, _ = pgxpool.NewWithConfig(context.Background(), config)
+	tar.wkr_num_ = 8
+	tar.workers = new(mList[*worker])
+	tar.workers.Init_with_num(tar.wkr_num_)
 }

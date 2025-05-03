@@ -1,7 +1,7 @@
 package main
 
 type MListNode[T any] interface {
-	Init(receiver)
+	Init(T)
 	Move_tail()
 	B_next() *mListNode[T]
 	Move_head()
@@ -23,7 +23,8 @@ type mListNode[T any] struct {
 
 func (tar *mListNode[T]) Init(data T) {
 	tar.data = data
-
+	tar.back = nil
+	tar.fore = nil
 }
 
 func (tar *mListNode[T]) Move_tail() {
