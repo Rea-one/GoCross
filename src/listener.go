@@ -12,15 +12,17 @@ type Listener interface {
 }
 
 type listener struct {
-	address_   string
-	receivers_ *mList[receiver]
-	wait_req_  chan []bool
-	quit_      chan struct{}
-	listener_  net.Listener
-	ipasser_   chan task
-	opasser_   chan task
-	current_rs int
-	max_rs_    int
+	rcv_id_pool_ mQueue[int]
+	address_     string
+	receivers_   *mList[receiver]
+	wait_req_    chan []bool
+	release_     chan int
+	quit_        chan struct{}
+	listener_    net.Listener
+	ipasser_     chan task
+	opasser_     chan task
+	current_rs   int
+	max_rs_      int
 }
 
 func (tar *listener) Init(ip chan task, op chan task) {
@@ -28,6 +30,10 @@ func (tar *listener) Init(ip chan task, op chan task) {
 	tar.max_rs_ = 4
 	tar.ipasser_ = ip
 	tar.opasser_ = op
+	tar.rcv_id_pool_.Init()
+	for i := 0; i < tar.max_rs_; i++ {
+		tar.rcv_id_pool_.Push(i)
+	}
 }
 
 func (tar *listener) Start() {
@@ -59,10 +65,10 @@ func (tar *listener) Start() {
 
 				// 创建接收者
 				var rcv receiver
-				rcv.Init(conn)
+				rcv.Init(conn, tar.ipasser_, tar.opasser_)
 				var node mListNode[receiver]
 				node.Init(rcv)
-				go rcv.Start()
+				rcv.Start()
 
 				// 添加接收者到链表
 				tar.receivers_.Push_tail(&node)

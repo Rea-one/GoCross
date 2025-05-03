@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type Server interface {
 	Init()
 	Start()
@@ -14,11 +16,20 @@ type server struct {
 }
 
 func (tar *server) Init() {
+	tar.pgconfig = &cimess{
+		database_:  "postgres",
+		dominator_: "postgres",
+		host_:      "localhost",
+		password_:  "123456",
+	}
 	tar.listener.Init(tar.ipasser_, tar.opasser_)
 	tar.workers.Init(tar.pgconfig, tar.ipasser_, tar.opasser_)
 }
 
 func (tar *server) Start() {
-	tar.workers.Start()
-	tar.listener.Start()
+	go tar.workers.Start()
+	go tar.listener.Start()
+	for {
+		time.Sleep(time.Second)
+	}
 }

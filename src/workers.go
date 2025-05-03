@@ -18,7 +18,7 @@ type Workers interface {
 type workers struct {
 	rec_       *pgxpool.Config
 	conn_pool_ *pgxpool.Pool
-	group_     *mList[worker]
+	group_     []*worker
 	pick_up_   chan int
 	omess_     chan task
 	imess_     chan task
@@ -27,26 +27,26 @@ type workers struct {
 }
 
 func (tar *workers) Start() {
-	var id int = 0
-	w := tar.group_.Till()
-	for w != nil {
+	for id := range tar.group_ {
 		conn, _ := tar.conn_pool_.Acquire(context.Background())
-		w.Get().Init(id, conn, tar.imess_, tar.omess_, tar.pick_up_)
-		w.Get().Start()
-		w = w.Till()
-		id++
+		tar.group_[id].Init(id, conn, tar.imess_, tar.omess_, tar.pick_up_)
+		tar.group_[id].Start()
 	}
 
+	go func() {
+		for {
+			select {
+			case task := <-tar.omess_:
+				tar.opasser_ <- task
+			default:
+				time.Sleep(time.Millisecond * 100)
+			}
+		}
+	}()
 	for {
 		select {
 		case task := <-tar.ipasser_:
-
-		default:
-			time.Sleep(time.Millisecond * 100)
-		}
-		select {
-		case task := <-tar.omess_:
-
+			tar.imess_ <- task
 		default:
 			time.Sleep(time.Millisecond * 100)
 		}
