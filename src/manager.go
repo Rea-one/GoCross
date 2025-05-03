@@ -83,10 +83,14 @@ func (tar *manager) Init(signal chan string, iom *iomap, mess *cimess) {
 	tar.signal_ = signal
 	tar.conn_pool_, _ = pgxpool.NewWithConfig(context.Background(), config)
 	tar.wkr_num_ = 8
-	tar.workers = new(mList[*worker])
 	for count := range tar.wkr_num_ {
 		conn, _ := tar.conn_pool_.Acquire(context.Background())
+		if tar.workers == nil {
+			tar.workers = new(mList[*worker])
+
+		}
 		tar.workers.Push_tail(new(mListNode[*worker]))
+		tar.workers.Tail().Init(new(worker))
 		tar.workers.Tail().data.Init(count, conn,
 			tar.io_map_.GetIn("default"), tar.io_map_.GetOut("default"), tar.release_)
 	}
