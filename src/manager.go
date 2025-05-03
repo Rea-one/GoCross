@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,7 +17,6 @@ type Manager interface {
 type manager struct {
 	signal_ chan string
 	io_map_ *iomap
-	rec_    *pgxpool.Config
 
 	conn_pool_ *pgxpool.Pool
 
@@ -78,14 +76,18 @@ func (tar *manager) Wait() {
 func (tar *manager) Init(signal chan string, iom *iomap, mess *cimess) {
 	config, _ := pgxpool.ParseConfig(mess.String())
 
-	cpuNum := int32(runtime.NumCPU())
+	config.MinConns = 4
+	config.MaxConns = 8
 
-	config.MaxConns = cpuNum * 4 // 动态调整
-	config.MinConns = cpuNum * 2
 	tar.io_map_ = iom
 	tar.signal_ = signal
 	tar.conn_pool_, _ = pgxpool.NewWithConfig(context.Background(), config)
 	tar.wkr_num_ = 8
 	tar.workers = new(mList[*worker])
-	tar.workers.Init_with_num(tar.wkr_num_)
+	for count := range tar.wkr_num_ {
+		conn, _ := tar.conn_pool_.Acquire(context.Background())
+		tar.workers.Push_tail(new(mListNode[*worker]))
+		tar.workers.Tail().data.Init(count, conn,
+			tar.io_map_.GetIn("default"), tar.io_map_.GetOut("default"), tar.release_)
+	}
 }

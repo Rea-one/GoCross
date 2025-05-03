@@ -47,12 +47,12 @@ func (tar *worker) Start() {
 				}
 			}
 		}
-
 	}()
 }
 
 func (tar *worker) Stop() {
 	tar.stop_ = true
+	defer tar.link_.Release()
 }
 
 func (tar *worker) Wait() {

@@ -14,11 +14,15 @@ type iomap struct {
 }
 
 func (tar *iomap) Init() {
+	tar.imp_ = &map[string]chan task{}
+	tar.omp_ = &map[string]chan task{}
+	tar.Register("default")
 }
 
 func (tar *iomap) Register(id string) {
 	if _, ok := (*tar.imp_)[id]; !ok {
 		(*tar.imp_)[id] = make(chan task)
+		(*tar.omp_)[id] = make(chan task)
 	}
 }
 

@@ -24,6 +24,8 @@ func (tar *server) Init() {
 		host_:      "localhost",
 		password_:  "123456",
 	}
+	tar.iomap_ = new(iomap)
+	tar.iomap_.Init()
 	tar.listener.Init(tar.signal_, tar.iomap_)
 	tar.manager.Init(tar.signal_, tar.iomap_, tar.pgconfig)
 }
