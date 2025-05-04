@@ -1,4 +1,4 @@
-package main
+package gocross
 
 type DeMess interface {
 	Get_chan() chan *string

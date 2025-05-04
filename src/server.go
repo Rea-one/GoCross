@@ -1,36 +1,39 @@
-package main
+package gocross
 
 import (
 	"time"
 )
 
-type Server interface {
+type ActServer interface {
 	Init()
 	Start()
 }
 
-type server struct {
+type Server struct {
 	listener listener
 	manager  manager
 	iomap_   *iomap
 	signal_  chan string
 	pgconfig *cimess
+	lsconfig *string
 }
 
-func (tar *server) Init() {
+func (tar *Server) Init() {
 	tar.pgconfig = &cimess{
 		database_:  "postgres",
 		dominator_: "postgres",
 		host_:      "localhost",
 		password_:  "123456",
 	}
+	config := "localhost:25054"
+	tar.lsconfig = &config
 	tar.iomap_ = new(iomap)
 	tar.iomap_.Init()
-	tar.listener.Init(tar.signal_, tar.iomap_)
+	tar.listener.Init(tar.signal_, tar.iomap_, tar.lsconfig)
 	tar.manager.Init(tar.signal_, tar.iomap_, tar.pgconfig)
 }
 
-func (tar *server) Start() {
+func (tar *Server) Start() {
 	go tar.manager.Start()
 	go tar.listener.Start()
 	for {

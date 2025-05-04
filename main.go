@@ -1,7 +1,11 @@
 package main
 
+import (
+	"empty.com/gocross"
+)
+
 func main() {
-	var server server
+	var server gocross.Server
 	server.Init()
 	server.Start()
 }

@@ -1,4 +1,4 @@
-package main
+package gocross
 
 type MListNode[T any] interface {
 	Init(T)

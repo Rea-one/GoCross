@@ -1,4 +1,4 @@
-package main
+package gocross
 
 type MQueue[T any] interface {
 	Init()

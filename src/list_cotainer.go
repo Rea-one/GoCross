@@ -1,4 +1,4 @@
-package main
+package gocross
 
 type MList[T any] interface {
 	Push_tail(*mListNode[T])

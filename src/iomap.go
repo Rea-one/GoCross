@@ -1,4 +1,4 @@
-package main
+package gocross
 
 type IOMap interface {
 	Init()

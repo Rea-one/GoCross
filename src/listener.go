@@ -1,12 +1,13 @@
-package main
+package gocross
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
 
 type Listener interface {
-	Init(chan task, *iomap)
+	Init(chan task, *iomap, *string)
 	Start()
 	Stop()
 }
@@ -25,9 +26,10 @@ type listener struct {
 	max_rs_      int
 }
 
-func (tar *listener) Init(signal chan string, iom *iomap) {
+func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
 	tar.current_rs = 0
 	tar.max_rs_ = 4
+	tar.address_ = *host
 	tar.signal_ = signal
 	tar.io_map_ = iom
 	tar.rcv_id_pool_.Init()
@@ -40,11 +42,11 @@ func (tar *listener) Start() {
 	var err error
 
 	tar.listener_, err = net.Listen("tcp", tar.address_)
+	fmt.Print("正在监听", tar.listener_.Addr().String())
 	if err != nil {
 		// 处理监听错误
 		return
 	}
-	defer tar.listener_.Close()
 	tar.quit_ = make(chan struct{})
 	go func() {
 		for {
@@ -62,7 +64,7 @@ func (tar *listener) Start() {
 					// 处理连接错误
 					continue
 				}
-
+				fmt.Print("有连接了")
 				IP := conn.RemoteAddr().String()
 				id := tar.rcv_id_pool_.The()
 				tar.signal_ <- IP
