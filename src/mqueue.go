@@ -15,6 +15,8 @@ type mQueue[T any] struct {
 }
 
 func (tar *mQueue[T]) Init() {
+	tar.ique_.Init()
+	tar.oque_.Init()
 }
 
 func (tar *mQueue[T]) Push(data T) {
