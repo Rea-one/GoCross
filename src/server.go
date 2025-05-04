@@ -23,9 +23,9 @@ func (tar *Server) Init() {
 		database_:  "postgres",
 		dominator_: "postgres",
 		host_:      "localhost",
-		password_:  "123456",
+		password_:  "12",
 	}
-	config := "localhost:25054"
+	config := "127.0.0.1:25054"
 	tar.lsconfig = &config
 	tar.iomap_ = new(iomap)
 	tar.iomap_.Init()

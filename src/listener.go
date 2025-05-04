@@ -1,7 +1,7 @@
 package gocross
 
 import (
-	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -10,20 +10,25 @@ type Listener interface {
 	Init(chan task, *iomap, *string)
 	Start()
 	Stop()
+	serve()
+	naction(net.Conn)
+	daction()
 }
 
 type listener struct {
 	rcv_id_pool_ mQueue[int]
 	address_     string
 	receivers_   *mList[*receiver]
-	rcv_map_     *map[int]*mListNode[*receiver]
-	io_map_      *iomap
-	quit_        chan struct{}
-	listener_    net.Listener
-	release_     chan int
-	signal_      chan string
-	current_rs   int
-	max_rs_      int
+	// 本地表不使用指针保存
+	rcv_map_   map[int]*mListNode[*receiver]
+	io_map_    *iomap
+	stop_      bool
+	listener_  net.Listener
+	release_   chan int
+	signal_    chan string
+	current_rs int
+	max_rs_    int
+	counter    int
 }
 
 func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
@@ -36,95 +41,105 @@ func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
 	for i := range tar.max_rs_ {
 		tar.rcv_id_pool_.Push(i)
 	}
+
+	lsn, err := net.Listen("tcp", tar.address_)
+	if err != nil {
+		log.Fatalf("初始化失败: %v\n", err)
+	}
+	tar.listener_ = lsn
+	log.Printf("listener 初始化成功")
 }
 
 func (tar *listener) Start() {
-	var err error
-
-	tar.listener_, err = net.Listen("tcp", tar.address_)
-	fmt.Print("正在监听", tar.listener_.Addr().String())
-	if err != nil {
-		// 处理监听错误
-		return
-	}
-	tar.quit_ = make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-tar.quit_:
-				return
-			default:
-				if tar.current_rs >= tar.max_rs_ {
-					time.Sleep(time.Second * 1)
-					continue
-				}
-				// 接受连接
-				conn, err := tar.listener_.Accept()
-				if err != nil {
-					// 处理连接错误
-					continue
-				}
-				fmt.Print("有连接了")
-				IP := conn.RemoteAddr().String()
-				id := tar.rcv_id_pool_.The()
-				tar.signal_ <- IP
-				tar.rcv_id_pool_.Pop()
-				tar.io_map_.Register(IP)
-				// 创建接收者
-				var rcv receiver
-				rcv.Init(id, conn,
-					tar.io_map_.GetIn(IP), tar.io_map_.GetOut(IP))
-				var node mListNode[*receiver]
-				node.Init(&rcv)
-				(*tar.rcv_map_)[id] = &node
-				rcv.Start()
-				// 添加接收者到链表
-				tar.receivers_.Push_tail(&node)
-				tar.current_rs++
-			}
-			select {
-			case rls := <-tar.release_:
-				IP := (*tar.rcv_map_)[rls].Get().GetIP()
-				tar.io_map_.Erase(IP)
-				tar.rcv_id_pool_.Push(rls)
-				tar.receivers_.Delete((*tar.rcv_map_)[rls])
-				delete((*tar.rcv_map_), rls)
-				tar.current_rs--
-			default:
-
-			}
-		}
-	}()
+	go tar.serve()
 }
 
 // 停止监听方法
 func (tar *listener) Stop() {
-	close(tar.quit_)
+	tar.stop_ = true
 	if tar.listener_ != nil {
 		tar.listener_.Close()
 	}
 }
 
-// func sort_receivers(receivers *[]receiver, left int, right int) {
-// 	if left >= right {
-// 		return
-// 	}
-// 	var l = left
-// 	var r = right
-// 	for l <= r {
-// 		for receivers[l].conn_.RemoteAddr().String() < receivers[(left+right)/2].conn_.RemoteAddr().String() {
-// 			l++
-// 		}
-// 		for receivers[r].conn_.RemoteAddr().String() > receivers[(left+right)/2].conn_.RemoteAddr().String() {
-// 			r--
-// 		}
-// 		if l <= r {
-// 			receivers[l], receivers[r] = receivers[r], receivers[l]
-// 			l++
-// 			r--
+func (tar *listener) serve() {
+	for !tar.stop_ {
+		tar.daction()
 
-// 		}
-// 	}
-// 	sort_receivers(receivers, left, r)
-// 	sort_receivers(receivers, l, right)
-// }
+		if tar.current_rs >= tar.max_rs_ {
+			time.Sleep(time.Millisecond * 500)
+			continue
+		}
+
+		conn, err := tar.listener_.Accept()
+		if err != nil {
+			log.Printf("连接接受失败: %v\n", err)
+			continue
+		}
+		tar.counter++
+		log.Printf("接受到新连接: %v\n", conn.RemoteAddr())
+		tar.naction(conn)
+	}
+}
+
+func (tar *listener) naction(conn net.Conn) {
+	IP := conn.RemoteAddr().String()
+	id := tar.rcv_id_pool_.The()
+
+	// 广播新连接信号
+	tar.signal_ <- IP
+
+	// 注册 IO 映射
+	tar.io_map_.Register(IP)
+
+	// 创建 receiver 实例
+	rcv := &receiver{}
+	rcv.Init(id, conn, tar.release_,
+		tar.io_map_.GetIn(IP), tar.io_map_.GetOut(IP))
+
+	// 创建链表节点
+	node := new(mListNode[*receiver])
+	node.Init(rcv)
+
+	// 记录映射关系
+	tar.rcv_map_[id] = node
+
+	// 启动 receiver
+	rcv.Start()
+
+	// 加入链表
+	tar.receivers_.Push_tail(node)
+
+	tar.rcv_id_pool_.Pop()
+	tar.current_rs++
+}
+
+func (tar *listener) daction() {
+	select {
+	case rls := <-tar.release_:
+		node := tar.rcv_map_[rls]
+		if node == nil {
+			return
+		}
+		rcv := node.Get()
+
+		// 清理 IO 映射
+		tar.io_map_.Erase(rcv.GetIP())
+
+		// 回收 ID
+		tar.rcv_id_pool_.Push(rls)
+
+		// 从链表中删除
+		tar.receivers_.Delete(node)
+
+		// 删除 map 中的引用
+		delete(tar.rcv_map_, rls)
+
+		// 减少当前连接数
+		tar.current_rs--
+
+		log.Printf("回收 receiver ID: %d", rls)
+	default:
+		// 无回收请求则跳过
+	}
+}

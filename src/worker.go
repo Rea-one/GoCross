@@ -15,6 +15,7 @@ type Worker interface {
 	Action(*task)
 	Change(chan task, chan task)
 	Init(int, *pgxpool.Conn, chan task, chan task, chan int)
+	serve()
 }
 
 type worker struct {
@@ -27,31 +28,12 @@ type worker struct {
 }
 
 func (tar *worker) Start() {
-	go func() {
-		for {
-			if !tar.stop_ {
-				select {
-				case task := <-tar.input_:
-					if task.Result == "close" {
-						tar.Stop()
-						break
-					}
-					rows, err := tar.link_.Query(context.Background(), task.Query)
-					if err != nil {
-						task.Result = err.Error()
-					} else {
-						task.Result = processRows(rows)
-					}
-				case <-time.After(time.Second * 5):
-					continue
-				}
-			}
-		}
-	}()
+	go tar.serve()
 }
 
 func (tar *worker) Stop() {
 	tar.stop_ = true
+	tar.release_ <- tar.id_
 	defer tar.link_.Release()
 }
 
@@ -69,11 +51,11 @@ func (tar *worker) Init(id int, link *pgxpool.Conn,
 	tar.release_ = rsl
 }
 
-func processRows(rows pgx.Rows) string {
+func processRows(rows *pgx.Rows) string {
 	var result string
-	for rows.Next() {
+	for (*rows).Next() {
 		var row string
-		rows.Scan(&row)
+		(*rows).Scan(row)
 		result += row
 	}
 	return result
@@ -82,4 +64,28 @@ func processRows(rows pgx.Rows) string {
 func (tar *worker) Change(it chan task, ot chan task) {
 	tar.input_ = it
 	tar.output_ = ot
+}
+
+func (tar *worker) serve() {
+	for {
+		if !tar.stop_ {
+			select {
+			case task := <-tar.input_:
+				if task.Result == "nomore" {
+					tar.Stop()
+				} else {
+					rows, err := tar.link_.Query(context.Background(), task.Query)
+					if err != nil {
+						task.Result = err.Error()
+					} else {
+						task.Result = processRows(&rows)
+					}
+					rows.Close()
+				}
+				tar.output_ <- task
+			case <-time.After(time.Second * 5):
+				continue
+			}
+		}
+	}
 }
