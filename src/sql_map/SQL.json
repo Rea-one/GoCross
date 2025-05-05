@@ -1,0 +1,27 @@
+{
+    "classes": {
+        "s": "sender",
+        "r": "receiver",
+        "m": "message",
+        "id": "id",
+        "time": "timestamp",
+        "type": "message_type",
+        "status": "delivery_status",
+        "read": "is_read",
+        "uid": "user_id",
+        "cid": "conversation_id",
+        "len": "content_length",
+        "cnt": "content",
+        "from": "source_user",
+        "to": "target_user"
+    },
+    "rejects": {
+        "Query": true,
+        "Update": true,
+        "Delete": true,
+        "Insert": true,
+        "Drop": true,
+        "Truncate": true,
+        "Alter": true
+    }
+}

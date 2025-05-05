@@ -20,13 +20,14 @@ type Server struct {
 
 func (tar *Server) Init() {
 	tar.pgconfig = &cimess{
-		database_:  "postgres",
+		database_:  "GoCross",
 		dominator_: "postgres",
-		host_:      "localhost",
-		password_:  "12",
+		host_:      "127.0.0.1:5432",
+		password_:  "123456",
 	}
 	config := "127.0.0.1:25054"
 	tar.lsconfig = &config
+	tar.signal_ = make(chan string, 4)
 	tar.iomap_ = new(iomap)
 	tar.iomap_.Init()
 	tar.listener.Init(tar.signal_, tar.iomap_, tar.lsconfig)

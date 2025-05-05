@@ -11,13 +11,13 @@ type MList[T any] interface {
 	Till() *mListNode[T]
 	F_till() *mListNode[T]
 	B_till() *mListNode[T]
-	tar() *T
 
 	Move_head(*mListNode[T])
 	Move_tail(*mListNode[T])
 	Delete(*mListNode[T])
 	Size() int
 
+	Init()
 	Init_with_num(int)
 }
 
@@ -158,6 +158,9 @@ func (tar *mList[T]) Delete(node *mListNode[T]) {
 	tar.size--
 }
 
+func (tar *mList[T]) Init() {
+	tar.Init_with_num(1)
+}
 func (tar *mList[T]) Init_with_num(num int) {
 	tar.cursor = new(mListNode[T])
 	tar.size = 0

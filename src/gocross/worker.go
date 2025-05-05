@@ -34,7 +34,6 @@ func (tar *worker) Start() {
 func (tar *worker) Stop() {
 	tar.stop_ = true
 	tar.release_ <- tar.id_
-	defer tar.link_.Release()
 }
 
 func (tar *worker) Wait() {

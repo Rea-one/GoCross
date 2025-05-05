@@ -2,11 +2,11 @@ module main
 
 go 1.24.2
 
-require empty.com/gocross v0.0.0
+require now/gocross v0.0.0
 
 require github.com/jackc/pgx/v5 v5.7.4
 
-replace empty.com/gocross => ./src
+replace now/gocross => ./src/gocross
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

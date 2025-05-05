@@ -21,6 +21,7 @@ type manager struct {
 	io_map_ *iomap
 
 	conn_pool_ *pgxpool.Pool
+	stop_      bool
 
 	wkr_num_ int
 	workers  *mList[*worker]
@@ -30,6 +31,7 @@ type manager struct {
 
 func (tar *manager) Start() {
 	go tar.serve()
+	log.Printf("manager 开始运行")
 }
 
 func (tar *manager) Stop() {
@@ -75,7 +77,7 @@ func (tar *manager) serve() {
 
 	useFastPolling := false
 
-	for {
+	for !tar.stop_ {
 		if useFastPolling {
 			select {
 			case IP := <-tar.signal_:

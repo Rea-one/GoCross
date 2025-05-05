@@ -37,6 +37,8 @@ func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
 	tar.address_ = *host
 	tar.signal_ = signal
 	tar.io_map_ = iom
+	tar.rcv_map_ = make(map[int]*mListNode[*receiver])
+	tar.receivers_ = new(mList[*receiver])
 	tar.rcv_id_pool_.Init()
 	for i := range tar.max_rs_ {
 		tar.rcv_id_pool_.Push(i)
@@ -52,6 +54,7 @@ func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
 
 func (tar *listener) Start() {
 	go tar.serve()
+	log.Printf("listener 开始运行")
 }
 
 // 停止监听方法
@@ -73,11 +76,11 @@ func (tar *listener) serve() {
 
 		conn, err := tar.listener_.Accept()
 		if err != nil {
-			log.Printf("连接接受失败: %v\n", err)
+			log.Printf("连接接收失败: %v\n", err)
 			continue
 		}
 		tar.counter++
-		log.Printf("接受到新连接: %v\n", conn.RemoteAddr())
+		log.Printf("接收到新连接: %v\n", conn.RemoteAddr())
 		tar.naction(conn)
 	}
 }
@@ -85,6 +88,7 @@ func (tar *listener) serve() {
 func (tar *listener) naction(conn net.Conn) {
 	IP := conn.RemoteAddr().String()
 	id := tar.rcv_id_pool_.The()
+	tar.rcv_id_pool_.Pop()
 
 	// 广播新连接信号
 	tar.signal_ <- IP

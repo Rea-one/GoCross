@@ -1,6 +1,7 @@
 package gocross
 
 import (
+	"log"
 	"net"
 	"time"
 )
@@ -29,6 +30,7 @@ func (tar *receiver) Init(id int, conn net.Conn,
 	tar.release_ = release
 	tar.ipasser_ = ip
 	tar.opasser_ = op
+	log.Print("receiver 初始化完成")
 }
 
 func (tar *receiver) Start() {
@@ -56,6 +58,8 @@ func (tar *receiver) read() {
 		}
 		mess := string(data)
 		if mess == "nomore" {
+			log.Printf("%v 号接收者接收到终止信号，即将关闭连接",
+				tar.id_)
 			new_task.Result = mess
 		} else {
 			new_task.Query = mess
@@ -69,6 +73,7 @@ func (tar *receiver) write() {
 		select {
 		case task := <-tar.opasser_:
 			if task.GetResult() == "nomore" {
+				log.Printf("%v 号接收者关闭连接中", tar.id_)
 				tar.conn_.Close()
 				tar.release_ <- tar.id_
 				break

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"empty.com/gocross"
+	"now/gocross"
 )
 
 func main() {
