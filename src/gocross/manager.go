@@ -13,12 +13,12 @@ type Manager interface {
 	Stop()
 	Wait()
 	serve()
-	Init(chan string, *iomap, *cimess)
+	Init(chan string, *Checker, *cimess)
 }
 
 type manager struct {
-	signal_ chan string
-	io_map_ *iomap
+	signal_  chan string
+	checker_ *Checker
 
 	conn_pool_ *pgxpool.Pool
 	stop_      bool
@@ -42,13 +42,13 @@ func (tar *manager) Wait() {
 
 }
 
-func (tar *manager) Init(signal chan string, iom *iomap, mess *cimess) {
+func (tar *manager) Init(signal chan string, checker *Checker, mess *cimess) {
 	config, _ := pgxpool.ParseConfig(mess.String())
 
 	config.MinConns = 4
 	config.MaxConns = 8
 
-	tar.io_map_ = iom
+	tar.checker_ = checker
 	tar.signal_ = signal
 	tar.conn_pool_, _ = pgxpool.NewWithConfig(context.Background(), config)
 	tar.wkr_num_ = 8
@@ -62,8 +62,8 @@ func (tar *manager) Init(signal chan string, iom *iomap, mess *cimess) {
 		}
 		tar.workers.Push_tail(&mListNode[*worker]{})
 		tar.workers.Tail().Init(new(worker))
-		tar.workers.Tail().data.Init(count, conn,
-			tar.io_map_.GetIn("default"), tar.io_map_.GetOut("default"), tar.release_)
+		tar.workers.Tail().data.Init(count, "default",
+			tar.checker_, tar.release_, conn)
 		tar.wkr_map_[count] = tar.workers.Tail()
 	}
 	log.Printf("manager 初始化成功")
@@ -82,7 +82,7 @@ func (tar *manager) serve() {
 			select {
 			case IP := <-tar.signal_:
 				now := tar.workers.Head()
-				now.data.Change((*tar.io_map_.imp_)[IP], (*tar.io_map_.omp_)[IP])
+				now.data.Change(IP)
 				now.Get().Start()
 				tar.workers.Move_tail(now)
 				tickerFast.Reset(10 * time.Millisecond) // 保持高频
@@ -96,7 +96,7 @@ func (tar *manager) serve() {
 			case IP := <-tar.signal_:
 				useFastPolling = true
 				now := tar.workers.Head()
-				now.data.Change((*tar.io_map_.imp_)[IP], (*tar.io_map_.omp_)[IP])
+				now.data.Change(IP)
 				now.Get().Start()
 				tar.workers.Move_tail(now)
 			case rls := <-tar.release_:

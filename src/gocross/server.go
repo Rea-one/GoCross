@@ -12,7 +12,7 @@ type ActServer interface {
 type Server struct {
 	listener listener
 	manager  manager
-	iomap_   *iomap
+	checker  *Checker
 	signal_  chan string
 	pgconfig *cimess
 	lsconfig *string
@@ -28,10 +28,10 @@ func (tar *Server) Init() {
 	config := "127.0.0.1:25054"
 	tar.lsconfig = &config
 	tar.signal_ = make(chan string, 4)
-	tar.iomap_ = new(iomap)
-	tar.iomap_.Init()
-	tar.listener.Init(tar.signal_, tar.iomap_, tar.lsconfig)
-	tar.manager.Init(tar.signal_, tar.iomap_, tar.pgconfig)
+	tar.checker = new(Checker)
+	tar.checker.Init()
+	tar.listener.Init(tar.signal_, tar.checker.iom_, tar.lsconfig)
+	tar.manager.Init(tar.signal_, tar.checker, tar.pgconfig)
 }
 
 func (tar *Server) Start() {

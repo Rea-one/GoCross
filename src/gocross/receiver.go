@@ -3,11 +3,12 @@ package gocross
 import (
 	"log"
 	"net"
+	"now/sqlmap"
 	"time"
 )
 
 type Receiver interface {
-	Init(int, net.Conn, chan int, chan task, chan task)
+	Init(int, net.Conn, chan int, chan sqlmap.Task, chan sqlmap.Task)
 	Start()
 	Stop()
 	GetIP() string
@@ -15,21 +16,23 @@ type Receiver interface {
 
 type receiver struct {
 	id_      int
+	counter_ int
 	conn_    net.Conn
 	stop_    bool
 	release_ chan int
-	ipasser_ chan task
-	opasser_ chan task
+	ipasser_ chan sqlmap.Task
+	opasser_ chan sqlmap.Task
 }
 
 func (tar *receiver) Init(id int, conn net.Conn,
-	release chan int, ip chan task, op chan task) {
+	release chan int, ip chan sqlmap.Task, op chan sqlmap.Task) {
 	tar.conn_ = conn
 	tar.id_ = id
 	tar.stop_ = false
 	tar.release_ = release
 	tar.ipasser_ = ip
 	tar.opasser_ = op
+	tar.counter_ = 1
 	log.Print("receiver 初始化完成")
 }
 
@@ -48,19 +51,17 @@ func (tar *receiver) read() {
 		}
 		data := make([]byte, n)
 		copy(data, buf[:n])
-		id := tar.GetIP()
 
-		new_task := task{
-			ID:       id,
-			Query:    "",
-			Result:   "",
+		new_task := sqlmap.Task{
+			ID:       float64(tar.id_) / float64(tar.counter_),
+			State:    "from fore",
 			Deadline: time.Now().Add(time.Second * 10),
 		}
 		mess := string(data)
 		if mess == "nomore" {
 			log.Printf("%v 号接收者接收到终止信号，即将关闭连接",
 				tar.id_)
-			new_task.Result = mess
+			new_task.State = mess
 		} else {
 			new_task.Query = mess
 		}
@@ -72,13 +73,13 @@ func (tar *receiver) write() {
 	for !tar.stop_ {
 		select {
 		case task := <-tar.opasser_:
-			if task.GetResult() == "nomore" {
+			if task.GetState() == "nomore" {
 				log.Printf("%v 号接收者关闭连接中", tar.id_)
 				tar.conn_.Close()
 				tar.release_ <- tar.id_
 				break
 			}
-			tar.conn_.Write([]byte(task.GetResult()))
+			tar.conn_.Write([]byte(task.GetState()))
 		default:
 			time.Sleep(time.Millisecond * 300)
 		}

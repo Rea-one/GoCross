@@ -4,6 +4,7 @@ type ActSqlMap interface {
 	Init()
 	To_SQL(string) string
 	analyze(string) string
+	Ana(*Task)
 }
 
 type SqlMap struct {
@@ -42,4 +43,51 @@ func (tar *SqlMap) analyze(message string) string {
 		return "reject"
 	}
 	return result
+}
+
+func (tar *SqlMap) Ana(task *Task) {
+	var rec string
+	var cursor *string
+	for word := range task.Query {
+		if word == ' ' {
+			if rec != "" {
+				now := tar.themap.To_SQL(rec)
+				if now != "reject" {
+					if cursor == nil {
+						switch now {
+						case "sender":
+							cursor = &task.Sender
+						case "receiver":
+							cursor = &task.Receiver
+						case "type":
+							cursor = &task.Ttype
+						case "password":
+							cursor = &task.Password
+						case "message":
+							cursor = &task.Message
+						}
+					} else {
+						*cursor = now
+						cursor = nil
+					}
+				} else {
+					task.State = "reject"
+					return
+				}
+			}
+		} else {
+			rec += string(word)
+		}
+	}
+	if rec != "" {
+		now := tar.themap.To_SQL(rec)
+		if now != "reject" {
+			if cursor != nil {
+				*cursor = now
+				cursor = nil
+			}
+		} else {
+			task.State = "reject"
+		}
+	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type Listener interface {
-	Init(chan task, *iomap, *string)
+	Init(chan int, *iomap, *string)
 	Start()
 	Stop()
 	serve()
