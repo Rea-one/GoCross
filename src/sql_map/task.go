@@ -8,6 +8,7 @@ type ActTask interface {
 	GetID() float64
 	GetQuery() string
 	GetState() string
+	GetFeedback() string
 	SetState(string)
 	GetDeadline() time.Time
 }
@@ -44,4 +45,8 @@ func (tar *Task) SetState(result string) {
 
 func (tar *Task) GetDeadline() time.Time {
 	return tar.Deadline
+}
+
+func (tar *Task) GetFeedback() string {
+	return tar.Feedback
 }

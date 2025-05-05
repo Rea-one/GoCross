@@ -54,7 +54,8 @@ func (tar *receiver) read() {
 
 		new_task := sqlmap.Task{
 			ID:       float64(tar.id_) / float64(tar.counter_),
-			State:    "from fore",
+			State:    "cross received",
+			Ttype:    "pass",
 			Deadline: time.Now().Add(time.Second * 10),
 		}
 		mess := string(data)
@@ -79,7 +80,12 @@ func (tar *receiver) write() {
 				tar.release_ <- tar.id_
 				break
 			}
-			tar.conn_.Write([]byte(task.GetState()))
+			if task.GetFeedback() == "" {
+				tar.conn_.Write([]byte(task.GetState()))
+			} else {
+				tar.conn_.Write([]byte(task.GetFeedback()))
+			}
+
 		default:
 			time.Sleep(time.Millisecond * 300)
 		}

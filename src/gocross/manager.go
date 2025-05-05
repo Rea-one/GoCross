@@ -45,13 +45,13 @@ func (tar *manager) Wait() {
 func (tar *manager) Init(signal chan string, checker *Checker, mess *cimess) {
 	config, _ := pgxpool.ParseConfig(mess.String())
 
-	config.MinConns = 4
-	config.MaxConns = 8
+	config.MinConns = 2
+	config.MaxConns = 4
 
 	tar.checker_ = checker
 	tar.signal_ = signal
 	tar.conn_pool_, _ = pgxpool.NewWithConfig(context.Background(), config)
-	tar.wkr_num_ = 8
+	tar.wkr_num_ = 4
 	tar.release_ = make(chan int, tar.wkr_num_)
 	tar.wkr_map_ = make(map[int]*mListNode[*worker])
 	for count := range tar.wkr_num_ {
@@ -70,6 +70,10 @@ func (tar *manager) Init(signal chan string, checker *Checker, mess *cimess) {
 }
 
 func (tar *manager) serve() {
+	for _ = range tar.wkr_num_ {
+		tar.workers.head.Get().Start()
+		tar.workers.Move_tail(tar.workers.head)
+	}
 	tickerFast := time.NewTicker(10 * time.Millisecond)  // 高频轮询间隔
 	tickerSlow := time.NewTicker(100 * time.Millisecond) // 低频等待间隔
 	defer tickerFast.Stop()
@@ -83,7 +87,6 @@ func (tar *manager) serve() {
 			case IP := <-tar.signal_:
 				now := tar.workers.Head()
 				now.data.Change(IP)
-				now.Get().Start()
 				tar.workers.Move_tail(now)
 				tickerFast.Reset(10 * time.Millisecond) // 保持高频
 			case rls := <-tar.release_:
@@ -97,7 +100,6 @@ func (tar *manager) serve() {
 				useFastPolling = true
 				now := tar.workers.Head()
 				now.data.Change(IP)
-				now.Get().Start()
 				tar.workers.Move_tail(now)
 			case rls := <-tar.release_:
 				tar.workers.Move_head(tar.wkr_map_[rls])

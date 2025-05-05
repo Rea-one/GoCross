@@ -3,10 +3,12 @@ module main
 go 1.24.2
 
 require now/gocross v0.0.0
+require now/sqlmap v0.0.0
 
 require github.com/jackc/pgx/v5 v5.7.4
 
 replace now/gocross => ./src/gocross
+replace now/sqlmap => ./src/sql_map
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

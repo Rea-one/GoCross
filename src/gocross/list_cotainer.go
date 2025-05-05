@@ -22,11 +22,10 @@ type MList[T any] interface {
 }
 
 type mList[T any] struct {
-	head   *mListNode[T]
-	tail   *mListNode[T]
-	cursor *mListNode[T]
-	size   int
-	itl    bool
+	head *mListNode[T]
+	tail *mListNode[T]
+	size int
+	itl  bool
 }
 
 func (tar *mList[T]) Push_tail(node *mListNode[T]) {
@@ -37,7 +36,6 @@ func (tar *mList[T]) Push_tail(node *mListNode[T]) {
 		tar.tail.To_back(node)
 	}
 	tar.tail = node
-	tar.cursor = node
 	tar.size++
 }
 
@@ -49,7 +47,6 @@ func (tar *mList[T]) Push_head(node *mListNode[T]) {
 		tar.head.To_fore(node)
 	}
 	tar.head = node
-	tar.cursor = node
 	tar.size++
 }
 
@@ -61,7 +58,6 @@ func (tar *mList[T]) Pop_tail() {
 		} else {
 			tar.head = nil
 		}
-		tar.cursor = tar.tail
 		tar.size--
 	}
 }
@@ -74,7 +70,6 @@ func (tar *mList[T]) Pop_head() {
 		} else {
 			tar.tail = nil
 		}
-		tar.cursor = tar.head
 		tar.size--
 	}
 }
@@ -91,48 +86,44 @@ func (tar *mList[T]) Empty() bool {
 	return tar.size <= 0
 }
 
-func (tar *mList[T]) Till() *mListNode[T] {
-	return tar.B_till()
-}
+// func (tar *mList[T]) Till() *mListNode[T] {
+// 	return tar.B_till()
+// }
 
-func (tar *mList[T]) F_till() *mListNode[T] {
-	if !tar.itl {
-		tar.cursor = tar.tail
-	}
-	tar.itl = true
-	result := tar.cursor
-	tar.cursor = tar.cursor.F_next()
-	return result
-}
+// func (tar *mList[T]) F_till() *mListNode[T] {
+// 	if !tar.itl {
+// 		tar.cursor = tar.tail
+// 	}
+// 	tar.itl = true
+// 	result := tar.cursor
+// 	tar.cursor = tar.cursor.F_next()
+// 	return result
+// }
 
-func (tar *mList[T]) B_till() *mListNode[T] {
-	if !tar.itl {
-		tar.cursor = tar.head
-	}
-	tar.itl = true
-	result := tar.cursor
-	tar.cursor = tar.cursor.B_next()
-	return result
-}
+// func (tar *mList[T]) B_till() *mListNode[T] {
+// 	if !tar.itl {
+// 		tar.cursor = tar.head
+// 	}
+// 	tar.itl = true
+// 	result := tar.cursor
+// 	tar.cursor = tar.cursor.B_next()
+// 	return result
+// }
 
 func (tar *mList[T]) Move_head(node *mListNode[T]) {
-	if tar.head != node {
-		node.fore.back = node.back
-		tar.head.fore = node
-		node.back = tar.head
-		node.fore = nil
-		tar.head = node
+	if node == nil {
+		return
 	}
+	tar.Delete(node)
+	tar.Push_head(node)
 }
 
 func (tar *mList[T]) Move_tail(node *mListNode[T]) {
-	if tar.tail != node {
-		node.back.fore = node.fore
-		tar.tail.back = node
-		node.fore = tar.tail
-		node.back = nil
-		tar.tail = node
+	if node == nil {
+		return
 	}
+	tar.Delete(node)
+	tar.Push_tail(node)
 }
 
 func (tar *mList[T]) Delete(node *mListNode[T]) {
@@ -153,7 +144,6 @@ func (tar *mList[T]) Delete(node *mListNode[T]) {
 	if node.back != nil {
 		node.back.fore = node.fore
 	}
-	tar.cursor = nil
 
 	tar.size--
 }
@@ -162,15 +152,14 @@ func (tar *mList[T]) Init() {
 	tar.Init_with_num(1)
 }
 func (tar *mList[T]) Init_with_num(num int) {
-	tar.cursor = new(mListNode[T])
 	tar.size = 0
-	tar.head = tar.cursor
-	tar.tail = tar.cursor
+	tar.head = new(mListNode[T])
+	tar.tail = tar.head
 	for range num - 1 {
-		tar.Push_tail(&mListNode[T]{})
+		tar.Push_tail(new(mListNode[T]))
 	}
 }
 
 func (tar *mList[T]) Size() int {
-	return tar.size + 1
+	return tar.size
 }

@@ -32,7 +32,9 @@ type Checker struct {
 
 func (tar *iomap) Init() {
 	tar.imp_ = new(map[string]chan sqlmap.Task)
+	*tar.imp_ = make(map[string]chan sqlmap.Task)
 	tar.omp_ = new(map[string]chan sqlmap.Task)
+	*tar.omp_ = make(map[string]chan sqlmap.Task)
 	tar.Register("default")
 }
 

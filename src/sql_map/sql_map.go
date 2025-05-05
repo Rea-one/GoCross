@@ -1,5 +1,7 @@
 package sqlmap
 
+import "strings"
+
 type ActSqlMap interface {
 	Init()
 	To_SQL(string) string
@@ -12,6 +14,7 @@ type SqlMap struct {
 }
 
 func (tar *SqlMap) Init() {
+	tar.themap.Init("./src/sql_map/SQL.json")
 }
 
 func (tar *SqlMap) To_SQL(message string) string {
@@ -46,48 +49,42 @@ func (tar *SqlMap) analyze(message string) string {
 }
 
 func (tar *SqlMap) Ana(task *Task) {
-	var rec string
 	var cursor *string
-	for word := range task.Query {
-		if word == ' ' {
-			if rec != "" {
-				now := tar.themap.To_SQL(rec)
-				if now != "reject" {
-					if cursor == nil {
-						switch now {
-						case "sender":
-							cursor = &task.Sender
-						case "receiver":
-							cursor = &task.Receiver
-						case "type":
-							cursor = &task.Ttype
-						case "password":
-							cursor = &task.Password
-						case "message":
-							cursor = &task.Message
-						}
-					} else {
-						*cursor = now
-						cursor = nil
-					}
-				} else {
-					task.State = "reject"
-					return
-				}
+
+	// 将 Query 分割为 token
+	tokens := strings.Fields(task.Query)
+
+	for _, word := range tokens {
+		now := tar.themap.To_SQL(word)
+		if now == "reject" {
+			task.State = "reject"
+			return
+		}
+
+		if cursor == nil {
+			switch now {
+			case "sender":
+				cursor = &task.Sender
+			case "receiver":
+				cursor = &task.Receiver
+			case "type":
+				cursor = &task.Ttype
+			case "password":
+				cursor = &task.Password
+			case "message":
+				cursor = &task.Message
+			default:
+				// 如果不是字段名，直接跳过
+				continue
 			}
 		} else {
-			rec += string(word)
+			*cursor = now
+			cursor = nil
 		}
 	}
-	if rec != "" {
-		now := tar.themap.To_SQL(rec)
-		if now != "reject" {
-			if cursor != nil {
-				*cursor = now
-				cursor = nil
-			}
-		} else {
-			task.State = "reject"
-		}
+
+	// 如果最后仍有未赋值的 cursor，说明语法不完整
+	if cursor != nil {
+		task.State = "reject"
 	}
 }

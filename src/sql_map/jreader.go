@@ -12,7 +12,7 @@ type ActReader interface {
 
 type Reader struct {
 	Classes map[string]string `json:"classes"`
-	Rejects map[string]string `json:"rejects"`
+	Rejects map[string]bool   `json:"rejects"`
 }
 
 func (tar *Reader) Init(path string) {
@@ -28,11 +28,11 @@ func (tar *Reader) Init(path string) {
 
 func (tar *Reader) To_SQL(message string) string {
 	_, r := tar.Rejects[message]
-	_, c := tar.Classes[message]
+	mess, c := tar.Classes[message]
 	if r {
 		return "reject"
 	} else if c {
-		return tar.Classes[message]
+		return mess
 	} else {
 		return message
 	}

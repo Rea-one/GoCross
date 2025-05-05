@@ -5,7 +5,6 @@ import (
 	"now/sqlmap"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,8 +15,8 @@ type Worker interface {
 	Action(*sqlmap.Task)
 	Change(string)
 	Init(int, string, *iomap, chan int, *pgxpool.Conn)
+	registerd(*sqlmap.Task) bool
 	serve()
-	to_db(*sqlmap.Task)
 	act_task(*sqlmap.Task)
 	act_register(*sqlmap.Task)
 	act_login(*sqlmap.Task)
@@ -36,6 +35,7 @@ type worker struct {
 	release_  chan<- int
 	online_   bool
 	ana_      sqlmap.SqlMap
+	counter   int
 }
 
 func (tar *worker) Start() {
@@ -64,17 +64,19 @@ func (tar *worker) Init(id int, index string, checker *Checker,
 	tar.online_ = false
 	tar.release_ = rsl
 	tar.ana_ = sqlmap.SqlMap{}
+	tar.ana_.Init()
+	tar.counter = 0
 }
 
-func processRows(rows *pgx.Rows) string {
-	var result string
-	for (*rows).Next() {
-		var row string
-		(*rows).Scan(row)
-		result += row
-	}
-	return result
-}
+// func processRows(rows *pgx.Rows) string {
+// 	var result string
+// 	for (*rows).Next() {
+// 		var row string
+// 		(*rows).Scan(row)
+// 		result += row
+// 	}
+// 	return result
+// }
 
 func (tar *worker) Change(index string) {
 	tar.index_ = index
@@ -87,7 +89,9 @@ func (tar *worker) serve() {
 	for !tar.stop_ {
 		select {
 		case task := <-tar.input_:
+			tar.counter++
 			if task.State == "nomore" {
+				task.Feedback = "nomore"
 				tar.Stop()
 			} else {
 				tar.act_task(&task)
@@ -98,6 +102,15 @@ func (tar *worker) serve() {
 					tar.act_login(&task)
 				case "pass":
 					tar.act_pass(&task)
+				case "1":
+				case "2":
+				case "3":
+				case "4":
+				case "5":
+				case "6":
+				case "7":
+				case "8":
+				case "9":
 				}
 			}
 			tar.back_put_ <- task
@@ -110,55 +123,85 @@ func (tar *worker) serve() {
 	}
 }
 
-func (tar *worker) to_db(task *sqlmap.Task) {
-	rows, err := tar.link_.Query(context.Background(), task.Query)
-	if err != nil {
-		task.State = err.Error()
-	} else {
-		task.SQL_fb = processRows(&rows)
-	}
-	rows.Close()
-}
+// func (tar *worker) to_db(task *sqlmap.Task) {
+// 	rows, err := tar.link_.Query(context.Background(), task.Query)
+// 	if err != nil {
+// 		task.State = err.Error()
+// 	} else {
+// 		task.SQL_fb = processRows(&rows)
+// 	}
+// 	rows.Close()
+// }
 
 func (tar *worker) act_task(task *sqlmap.Task) {
 	tar.ana_.Ana(task)
 }
 
 func (tar *worker) act_register(task *sqlmap.Task) {
-	task.Query = "insert into user(username,password)" +
-		"values('" + task.Sender + "','" + task.Password + "')"
-	tar.to_db(task)
+	if tar.registerd(task) {
+		task.State = "rejected"
+		task.Feedback = "another using"
+	} else {
+		task.Query = "insert into reg(id,password)" +
+			"values($1, $2)"
+		fb, err := tar.link_.Exec(context.Background(),
+			task.Query, task.Sender, task.Password)
+		if err != nil {
+			task.State = err.Error()
+		} else if fb.RowsAffected() > 0 {
+			task.State = "registered"
+			task.Feedback = "registration success"
+		}
+	}
 	task.Query = ""
 	task.Password = ""
-	if task.State == "" {
-		task.State = "success"
-		tar.checker_.Link(tar.index_, task.Sender)
-	}
 }
 
 func (tar *worker) act_login(task *sqlmap.Task) {
-	task.Query = "select * from user where username='" + task.Sender + "'" +
-		"and password='" + task.Password + "'"
-	tar.to_db(task)
-	task.Query = ""
-	task.Password = ""
-	if task.State == "" {
-		task.State = "success"
+	task.Query = "select * from reg where id=$1 and password=$2"
+	fb, err := tar.link_.Exec(context.Background(),
+		task.Query, task.Sender, task.Password)
+	if err != nil {
+		task.State = err.Error()
+	} else if fb.RowsAffected() > 0 {
+		task.State = "logined"
+		task.Feedback = "login success"
 		tar.online_ = true
 		tar.checker_.Link(tar.index_, task.Sender)
+	} else {
+		task.State = "rejected"
+		task.Feedback = "wrong password"
+		tar.online_ = false
 	}
+	task.Query = ""
+	task.Password = ""
 }
 
 func (tar *worker) act_pass(task *sqlmap.Task) {
 	if tar.online_ {
-		task.Query = "insert * from user where username='" + task.Sender + "'" +
-			""
-		tar.to_db(task)
-		if task.State == "" {
-			task.State = "success"
+		task.Query = "insert into message(id,receiver,message)" +
+			"values($1, $2, $3)"
+		fb, err := tar.link_.Exec(context.Background(),
+			task.Query, task.Sender, task.Receiver, task.Message)
+		if err != nil {
+			task.State = err.Error()
+		} else if fb.RowsAffected() > 0 {
+			task.State = "passed"
+			task.Feedback = "pass success"
 			tar.to_put_ = tar.checker_.GetOut(task.Receiver)
-			task.Feedback = "s " + task.Sender +
-				" r " + task.Receiver + " m " + task.Message
 		}
+	} else {
+		task.State = "rejected"
+		task.Feedback = "not logined"
 	}
+}
+
+func (tar *worker) registerd(task *sqlmap.Task) bool {
+	query := "select * from reg where id=$1"
+	rows, err := tar.link_.Exec(context.Background(),
+		query, task.Sender)
+	if err != nil {
+		task.State = err.Error()
+	}
+	return rows.RowsAffected() > 0
 }
