@@ -53,14 +53,17 @@ func (tar *SqlMap) Ana(task *Task) {
 
 	// 将 Query 分割为 token
 	tokens := strings.Fields(task.Query)
+	switch len(tokens) {
+	case 0:
+		task.State = "reject"
+		return
+	case 1:
+		task.SetState(tokens[0])
+		return
+	}
 
 	for _, word := range tokens {
 		now := tar.themap.To_SQL(word)
-		if now == "reject" {
-			task.State = "reject"
-			return
-		}
-
 		if cursor == nil {
 			switch now {
 			case "sender":

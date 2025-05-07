@@ -21,6 +21,8 @@ type Worker interface {
 	act_register(*sqlmap.Task)
 	act_login(*sqlmap.Task)
 	act_pass(*sqlmap.Task)
+	act_requestm(*sqlmap.Task)
+	act_requesti(*sqlmap.Task)
 }
 
 type worker struct {
@@ -90,19 +92,23 @@ func (tar *worker) serve() {
 		select {
 		case task := <-tar.input_:
 			tar.counter++
-			if task.State == "nomore" {
-				task.Feedback = "nomore"
+			tar.act_task(&task)
+			switch task.Ttype {
+			case "nomore":
 				tar.Stop()
-			} else {
-				tar.act_task(&task)
-				switch task.Ttype {
-				case "register":
-					tar.act_register(&task)
-				case "login":
-					tar.act_login(&task)
-				case "pass":
-					tar.act_pass(&task)
-				}
+			case "register":
+				tar.act_register(&task)
+			case "login":
+				tar.act_login(&task)
+			case "pass":
+				tar.act_pass(&task)
+			case "request image":
+				tar.act_requesti(&task)
+			case "request message":
+				tar.act_requestm(&task)
+			default:
+				task.State = "rejected"
+				task.Feedback = "wrong type"
 			}
 			tar.back_put_ <- task
 			if tar.to_put_ != nil {
@@ -114,15 +120,15 @@ func (tar *worker) serve() {
 	}
 }
 
-// func (tar *worker) to_db(task *sqlmap.Task) {
-// 	rows, err := tar.link_.Query(context.Background(), task.Query)
-// 	if err != nil {
-// 		task.State = err.Error()
-// 	} else {
-// 		task.SQL_fb = processRows(&rows)
-// 	}
-// 	rows.Close()
-// }
+func (tar *worker) registerd(task *sqlmap.Task) bool {
+	query := "select * from reg where id=$1"
+	rows, err := tar.link_.Exec(context.Background(),
+		query, task.Sender)
+	if err != nil {
+		task.State = err.Error()
+	}
+	return rows.RowsAffected() > 0
+}
 
 func (tar *worker) act_task(task *sqlmap.Task) {
 	tar.ana_.Ana(task)
@@ -161,7 +167,7 @@ func (tar *worker) act_login(task *sqlmap.Task) {
 		tar.checker_.Link(tar.index_, task.Sender)
 	} else {
 		task.State = "rejected"
-		task.Feedback = "wrong password"
+		task.Feedback = "wrong password or wrong id"
 		tar.online_ = false
 	}
 	task.Query = ""
@@ -169,30 +175,63 @@ func (tar *worker) act_login(task *sqlmap.Task) {
 }
 
 func (tar *worker) act_pass(task *sqlmap.Task) {
-	if tar.online_ {
-		task.Query = "insert into message(id,receiver,message)" +
-			"values($1, $2, $3)"
-		fb, err := tar.link_.Exec(context.Background(),
-			task.Query, task.Sender, task.Receiver, task.Message)
-		if err != nil {
-			task.State = err.Error()
-		} else if fb.RowsAffected() > 0 {
-			task.State = "passed"
-			task.Feedback = "pass success"
-			tar.to_put_ = tar.checker_.GetOut(task.Receiver)
-		}
-	} else {
+	if !tar.online_ {
 		task.State = "rejected"
 		task.Feedback = "not logined"
+		return
+	}
+	task.Query = "insert into message(id,receiver,message)" +
+		"values($1, $2, $3)"
+	fb, err := tar.link_.Exec(context.Background(),
+		task.Query, task.Sender, task.Receiver, task.Message)
+	if err != nil {
+		task.State = err.Error()
+	} else if fb.RowsAffected() > 0 {
+		task.State = "passed"
+		task.Feedback = "pass success"
+		tar.to_put_ = tar.checker_.GetOut(task.Receiver)
 	}
 }
 
-func (tar *worker) registerd(task *sqlmap.Task) bool {
-	query := "select * from reg where id=$1"
-	rows, err := tar.link_.Exec(context.Background(),
-		query, task.Sender)
+func (tar *worker) act_requesti(task *sqlmap.Task) {
+	if !tar.online_ {
+		task.State = "rejected"
+		task.Feedback = "not logined"
+		return
+	}
+	task.Query = "select $1 from reg where id=$2"
+	fb, err := tar.link_.Exec(context.Background(),
+		task.Query, task.ReqTar, task.ReqIndex)
 	if err != nil {
 		task.State = err.Error()
+	} else {
+		task.State = "request success"
+		task.Image = []byte(fb.String())
 	}
-	return rows.RowsAffected() > 0
+
+}
+
+func (tar *worker) act_requestm(task *sqlmap.Task) {
+	if !tar.online_ {
+		task.State = "rejected"
+		task.Feedback = "not logined"
+		return
+	}
+	task.Query = "select message, timestamp from message where sender=$1 and receiver=$2"
+	rows, err := tar.link_.Exec(context.Background(),
+		task.Query, task.Sender, task.Receiver)
+	if err != nil {
+		task.State = err.Error()
+	} else {
+		task.State = "send message success"
+		task.Feedback = rows.String()
+	}
+	rows, err = tar.link_.Exec(context.Background(),
+		task.Query, task.Receiver, task.Sender)
+	if err != nil {
+		task.State = err.Error()
+	} else {
+		task.State = "sync message success"
+		task.Feedback = rows.String()
+	}
 }

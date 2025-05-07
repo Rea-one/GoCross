@@ -62,7 +62,7 @@ func (tar *receiver) read() {
 		if mess == "nomore" {
 			log.Printf("%v 号接收者接收到终止信号，即将关闭连接",
 				tar.id_)
-			new_task.State = mess
+			new_task.Ttype = "nomore"
 		} else {
 			new_task.Query = mess
 		}
@@ -74,18 +74,16 @@ func (tar *receiver) write() {
 	for !tar.stop_ {
 		select {
 		case task := <-tar.opasser_:
-			if task.GetState() == "nomore" {
+			switch task.GetState() {
+			case "nomore":
 				log.Printf("%v 号接收者关闭连接中", tar.id_)
 				tar.conn_.Close()
 				tar.release_ <- tar.id_
-				break
-			}
-			if task.GetFeedback() == "" {
+			case "request image":
+				tar.conn_.Write(task.Image)
+			default:
 				tar.conn_.Write([]byte(task.GetState()))
-			} else {
-				tar.conn_.Write([]byte(task.GetFeedback()))
 			}
-
 		default:
 			time.Sleep(time.Millisecond * 300)
 		}

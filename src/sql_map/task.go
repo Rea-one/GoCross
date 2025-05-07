@@ -21,9 +21,12 @@ type Task struct {
 	State    string
 	Ttype    string
 	Query    string // 自定义语句，遵循sql_map的处理规则
-	SQL_fb   string
+	Rtype    string
+	ReqTar   string
+	ReqIndex string
 	Message  string
 	Feedback string
+	Image    []byte
 	Deadline time.Time // 超时控制
 }
 

@@ -9,6 +9,8 @@
         "rg": "register",
         "lg": "login",
         "p": "pass",
+        "rqm": "request message",
+        "rqi": "request image",
         "ts": "timestamp",
         "status": "delivery_status",
         "read": "is_read",

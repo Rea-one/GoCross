@@ -25,7 +25,7 @@ func (tar *Server) Init() {
 		host_:      "127.0.0.1:5432",
 		password_:  "123456",
 	}
-	config := "127.0.0.1:25054"
+	config := "0.0.0.0:25054"
 	tar.lsconfig = &config
 	tar.signal_ = make(chan string, 4)
 	tar.checker = new(Checker)
