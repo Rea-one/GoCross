@@ -27,6 +27,7 @@ type Task struct {
 	Message   string
 	Feedback  string
 	Image     []byte
+	ImageID   string
 	TimeStamp string
 	Deadline  time.Time // 超时控制
 }

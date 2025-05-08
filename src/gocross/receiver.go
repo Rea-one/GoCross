@@ -81,7 +81,7 @@ func (tar *receiver) write() {
 				tar.release_ <- tar.id_
 			case "request image":
 				// 预告图片
-				tar.conn_.Write([]byte("image"))
+				tar.conn_.Write([]byte("image " + task.ImageID))
 				tar.conn_.Write(task.Image)
 			default:
 				tar.conn_.Write([]byte(task.GetState()))
