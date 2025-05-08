@@ -23,6 +23,7 @@ type Worker interface {
 	act_pass(*sqlmap.Task)
 	act_requestm(*sqlmap.Task)
 	act_requesti(*sqlmap.Task)
+	act_sync(*sqlmap.Task)
 }
 
 type worker struct {
@@ -106,6 +107,8 @@ func (tar *worker) serve() {
 				tar.act_requesti(&task)
 			case "request message":
 				tar.act_requestm(&task)
+			case "sync":
+
 			default:
 				task.State = "rejected"
 				task.Feedback = "wrong type"
@@ -234,4 +237,8 @@ func (tar *worker) act_requestm(task *sqlmap.Task) {
 		task.State = "sync message success"
 		task.Feedback = rows.String()
 	}
+}
+
+func (tar *worker) act_sync(task *sqlmap.Task) {
+
 }

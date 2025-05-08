@@ -14,20 +14,21 @@ type ActTask interface {
 }
 
 type Task struct {
-	ID       float64 // 任务唯一标识
-	Sender   string
-	Receiver string
-	Password string
-	State    string
-	Ttype    string
-	Query    string // 自定义语句，遵循sql_map的处理规则
-	Rtype    string
-	ReqTar   string
-	ReqIndex string
-	Message  string
-	Feedback string
-	Image    []byte
-	Deadline time.Time // 超时控制
+	ID        float64 // 任务唯一标识
+	Sender    string
+	Receiver  string
+	Password  string
+	State     string
+	Ttype     string
+	Query     string // 自定义语句，遵循sql_map的处理规则
+	Rtype     string
+	ReqTar    string
+	ReqIndex  string
+	Message   string
+	Feedback  string
+	Image     []byte
+	TimeStamp string
+	Deadline  time.Time // 超时控制
 }
 
 func (tar *Task) GetID() float64 {
