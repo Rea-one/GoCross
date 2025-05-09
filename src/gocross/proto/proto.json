@@ -1,0 +1,24 @@
+{
+    "message": {
+        "type": "message",
+        "source": "GoCross",
+        "sender": "ID",
+        "receiver": "ID",
+        "message": "message",
+        "timestamp": "timestamp",
+        "state": "normal"
+    },
+    "image": {
+        "type": "image",
+        "source": "GoCross",
+        "image": "image"
+    },
+    "ral": {
+        "type": "ral",
+        "ID": "ID",
+        "source": "GoCross",
+        "password": "password",
+        "state": "normal",
+        "timestamp": "timestamp"
+    }
+}
