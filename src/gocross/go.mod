@@ -5,8 +5,10 @@ go 1.24.2
 require github.com/jackc/pgx/v5 v5.7.4
 
 require now/sqlmap v0.0.0
+require now/request v0.0.0
 
 replace now/sqlmap v0.0.0 => ../sql_map
+replace now/request v0.0.0 => ../request
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

@@ -42,7 +42,7 @@ func (tar *receiver) Start() {
 }
 
 func (tar *receiver) read() {
-	buf := make([]byte, 1024)
+	buf := make([]byte, 64*1024) // 增大缓冲区以适应图像
 	for !tar.stop_ {
 		n, err := tar.conn_.Read(buf)
 		if err != nil {
@@ -52,21 +52,54 @@ func (tar *receiver) read() {
 		data := make([]byte, n)
 		copy(data, buf[:n])
 
-		new_task := sqlmap.Task{
-			ID:       float64(tar.id_) / float64(tar.counter_),
-			State:    "cross received",
-			Ttype:    "pass",
-			Deadline: time.Now().Add(time.Second * 10),
-		}
 		mess := string(data)
-		if mess == "nomore" {
-			log.Printf("%v 号接收者接收到终止信号，即将关闭连接",
-				tar.id_)
-			new_task.Ttype = "nomore"
-		} else {
-			new_task.Query = mess
+		switch {
+		case mess == "nomore":
+			// 处理终止信号
+		case strings.HasPrefix(mess, "image "):
+			// 提取 ImageID
+			imageID := strings.TrimPrefix(mess, "image ")
+			log.Printf("准备接收图片: %s", imageID)
+
+			// 下次 Read 接收图像数据
+			go func(id string) {
+				n, err := tar.conn_.Read(buf)
+				if err != nil {
+					log.Printf("接收图片失败：%v", err)
+					return
+				}
+				imgData := make([]byte, n)
+				copy(imgData, buf[:n])
+
+				// 上传到 MinIO
+				url, err := uploadToMinio(id, imgData)
+				if err != nil {
+					log.Printf("上传到 MinIO 失败：%v", err)
+					return
+				}
+
+				// 构造 Task
+				new_task := sqlmap.Task{
+					ID:       float64(tar.id_) / float64(tar.counter_),
+					State:    "image uploaded",
+					Ttype:    "pass",
+					Deadline: time.Now().Add(time.Second * 30),
+					ImageID:  url
+				}
+				tar.ipasser_ <- new_task
+			}(imageID)
+
+		default:
+			// 处理普通查询
+			new_task := sqlmap.Task{
+				ID:       float64(tar.id_) / float64(tar.counter_),
+				State:    "cross received",
+				Ttype:    "pass",
+				Deadline: time.Now().Add(time.Second * 10),
+				Query:    mess,
+			}
+			tar.ipasser_ <- new_task
 		}
-		tar.ipasser_ <- new_task
 	}
 }
 
