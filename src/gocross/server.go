@@ -14,24 +14,23 @@ type Server struct {
 	manager  manager
 	checker  *Checker
 	signal_  chan string
-	pgconfig *cimess
-	lsconfig *string
+	config   *cimess
 }
 
 func (tar *Server) Init() {
-	tar.pgconfig = &cimess{
+	tar.config = &cimess{
 		database_:  "GoCross",
 		dominator_: "postgres",
-		host_:      "127.0.0.1:5432",
 		password_:  "123456",
+		pg_host_:   "127.0.0.1:5432",
+		mn_host_:   "127.0.0.1:25059",
+		host_:      "0.0.0.0:25054",
 	}
-	config := "0.0.0.0:25054"
-	tar.lsconfig = &config
 	tar.signal_ = make(chan string, 4)
 	tar.checker = new(Checker)
 	tar.checker.Init()
-	tar.listener.Init(tar.signal_, tar.checker.iom_, tar.lsconfig)
-	tar.manager.Init(tar.signal_, tar.checker, tar.pgconfig)
+	tar.listener.Init(tar.signal_, tar.checker.iom_, tar.config)
+	tar.manager.Init(tar.signal_, tar.checker, tar.config)
 }
 
 func (tar *Server) Start() {

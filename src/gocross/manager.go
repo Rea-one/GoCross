@@ -43,7 +43,7 @@ func (tar *manager) Wait() {
 }
 
 func (tar *manager) Init(signal chan string, checker *Checker, mess *cimess) {
-	config, _ := pgxpool.ParseConfig(mess.String())
+	config, _ := pgxpool.ParseConfig(mess.PGString())
 
 	config.MinConns = 2
 	config.MaxConns = 4

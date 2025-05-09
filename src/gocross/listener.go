@@ -7,7 +7,7 @@ import (
 )
 
 type Listener interface {
-	Init(chan int, *iomap, *string)
+	Init(chan int, *iomap, *cimess)
 	Start()
 	Stop()
 	serve()
@@ -17,7 +17,8 @@ type Listener interface {
 
 type listener struct {
 	rcv_id_pool_ mQueue[int]
-	address_     string
+	host_        string
+	mn_host_     string
 	receivers_   *mList[*receiver]
 	// 本地表不使用指针保存
 	rcv_map_   map[int]*mListNode[*receiver]
@@ -29,12 +30,16 @@ type listener struct {
 	current_rs int
 	max_rs_    int
 	counter    int
+	mns_num_   int
+	mnConns_   mnConn
 }
 
-func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
+func (tar *listener) Init(signal chan string, iom *iomap, mess *cimess) {
 	tar.current_rs = 0
 	tar.max_rs_ = 4
-	tar.address_ = *host
+	tar.mns_num_ = 4
+	tar.host_ = mess.host_
+	tar.mn_host_ = mess.mn_host_
 	tar.signal_ = signal
 	tar.io_map_ = iom
 	tar.rcv_map_ = make(map[int]*mListNode[*receiver])
@@ -44,11 +49,13 @@ func (tar *listener) Init(signal chan string, iom *iomap, host *string) {
 		tar.rcv_id_pool_.Push(i)
 	}
 
-	lsn, err := net.Listen("tcp", tar.address_)
+	lsn, err := net.Listen("tcp", tar.host_)
 	if err != nil {
 		log.Fatalf("初始化失败: %v\n", err)
 	}
 	tar.listener_ = lsn
+	tar.mnConns_.Init(mess.pg_host_, tar.mns_num_)
+
 	log.Printf("listener 初始化成功")
 }
 
@@ -98,7 +105,7 @@ func (tar *listener) naction(conn net.Conn) {
 
 	// 创建 receiver 实例
 	rcv := &receiver{}
-	rcv.Init(id, conn, tar.release_,
+	rcv.Init(id, conn, &tar.mnConns_, tar.release_,
 		tar.io_map_.GetIn(IP), tar.io_map_.GetOut(IP))
 
 	// 创建链表节点

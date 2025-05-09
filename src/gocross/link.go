@@ -1,17 +1,20 @@
 package gocross
 
 type CIMess interface {
-	String()
+	PGString()
+	MNString()
 }
 
 type cimess struct {
 	dominator_ string
 	password_  string
-	host_      string
 	database_  string
+	pg_host_   string
+	mn_host_   string
+	host_      string
 }
 
-func (tar *cimess) String() string {
+func (tar *cimess) PGString() string {
 	return "postgresql://" + tar.dominator_ + ":" + tar.password_ +
-		"@" + tar.host_ + "/" + tar.database_
+		"@" + tar.pg_host_ + "/" + tar.database_
 }
