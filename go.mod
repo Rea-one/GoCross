@@ -4,9 +4,9 @@ go 1.24.2
 
 require now/gocross v0.0.0
 
-require now/sqlmap v0.0.0
+require now/sqlmap v0.0.0 // indirect
 
-require github.com/jackc/pgx/v5 v5.7.4
+require github.com/jackc/pgx/v5 v5.7.4 // indirect
 
 replace now/gocross => ./src/gocross
 
@@ -26,9 +26,9 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.91 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 )

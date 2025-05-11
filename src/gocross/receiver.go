@@ -119,7 +119,7 @@ func (tar *receiver) read() {
 				Message:   "图片已上传至 MinIO",
 				Receiver:  "",
 				Sender:    "",
-				State:     "success",
+				State:     "image",
 				Timestamp: "",
 			}
 			feedbackBytes, err := json.Marshal(tar.feedback_)
