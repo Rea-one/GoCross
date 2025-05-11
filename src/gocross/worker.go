@@ -21,8 +21,7 @@ type Worker interface {
 	act_register(*sqlmap.Task)
 	act_login(*sqlmap.Task)
 	act_pass(*sqlmap.Task)
-	act_requestm(*sqlmap.Task)
-	act_requesti(*sqlmap.Task)
+	act_config(*sqlmap.Task)
 	act_sync(*sqlmap.Task)
 }
 
@@ -103,10 +102,8 @@ func (tar *worker) serve() {
 				tar.act_login(&task)
 			case "pass":
 				tar.act_pass(&task)
-			case "request image":
-				tar.act_requesti(&task)
-			case "request message":
-				tar.act_requestm(&task)
+			case "config":
+				tar.act_config(&task)
 			case "sync":
 
 			default:
@@ -196,46 +193,21 @@ func (tar *worker) act_pass(task *sqlmap.Task) {
 	}
 }
 
-func (tar *worker) act_requesti(task *sqlmap.Task) {
+func (tar *worker) act_config(task *sqlmap.Task) {
 	if !tar.online_ {
 		task.State = "rejected"
 		task.Feedback = "not logined"
 		return
 	}
-	task.Query = "select $1 from reg where id=$2"
+	task.Query = "select name,icon_id from message where id=$1"
 	fb, err := tar.link_.Exec(context.Background(),
-		task.Query, task.ReqTar, task.ReqIndex)
+		task.Query, task.Sender)
 	if err != nil {
 		task.State = err.Error()
-	} else {
-		task.State = "request success"
-		task.Image = []byte(fb.String())
-	}
-
-}
-
-func (tar *worker) act_requestm(task *sqlmap.Task) {
-	if !tar.online_ {
-		task.State = "rejected"
-		task.Feedback = "not logined"
-		return
-	}
-	task.Query = "select message, timestamp from message where sender=$1 and receiver=$2"
-	rows, err := tar.link_.Exec(context.Background(),
-		task.Query, task.Sender, task.Receiver)
-	if err != nil {
-		task.State = err.Error()
-	} else {
-		task.State = "send message success"
-		task.Feedback = rows.String()
-	}
-	rows, err = tar.link_.Exec(context.Background(),
-		task.Query, task.Receiver, task.Sender)
-	if err != nil {
-		task.State = err.Error()
-	} else {
-		task.State = "sync message success"
-		task.Feedback = rows.String()
+	} else if fb.RowsAffected() > 0 {
+		task.State = "confige"
+		task.Feedback = "config success"
+		tar.to_put_ = tar.checker_.GetOut(task.Receiver)
 	}
 }
 
