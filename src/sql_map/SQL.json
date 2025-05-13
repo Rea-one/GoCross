@@ -1,5 +1,6 @@
 {
     "classes": {
+        "a": "at",
         "s": "sender",
         "r": "receiver",
         "m": "message",

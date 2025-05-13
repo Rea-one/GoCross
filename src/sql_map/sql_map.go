@@ -52,7 +52,7 @@ func (tar *SqlMap) Ana(task *Task) {
 	var cursor *string
 
 	// 将 Query 分割为 token
-	tokens := strings.Fields(task.Query)
+	tokens := strings.Fields(task.Message)
 	switch len(tokens) {
 	case 0:
 		task.State = "reject"
@@ -66,6 +66,8 @@ func (tar *SqlMap) Ana(task *Task) {
 		now := tar.themap.To_SQL(word)
 		if cursor == nil {
 			switch now {
+			case "at":
+				cursor = &task.At
 			case "sender":
 				cursor = &task.Sender
 			case "receiver":

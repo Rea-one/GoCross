@@ -120,8 +120,6 @@ func (tar *listener) naction(conn net.Conn) {
 
 	// 加入链表
 	tar.receivers_.Push_tail(node)
-
-	tar.rcv_id_pool_.Pop()
 	tar.current_rs++
 }
 

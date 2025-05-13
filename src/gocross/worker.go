@@ -21,9 +21,10 @@ type Worker interface {
 	act_register(*sqlmap.Task)
 	act_login(*sqlmap.Task)
 	act_pass(*sqlmap.Task)
-	act_requestm(*sqlmap.Task)
-	act_requesti(*sqlmap.Task)
+	act_config(*sqlmap.Task)
 	act_sync(*sqlmap.Task)
+	act_addfriend(*sqlmap.Task)
+	respond(*sqlmap.Task)
 }
 
 type worker struct {
@@ -103,19 +104,15 @@ func (tar *worker) serve() {
 				tar.act_login(&task)
 			case "pass":
 				tar.act_pass(&task)
-			case "request image":
-				tar.act_requesti(&task)
-			case "request message":
-				tar.act_requestm(&task)
+			case "config":
+				tar.act_config(&task)
+			case "addfriend":
+				tar.act_addfriend(&task)
 			case "sync":
-
+				tar.act_sync(&task)
 			default:
 				task.State = "rejected"
 				task.Feedback = "wrong type"
-			}
-			tar.back_put_ <- task
-			if tar.to_put_ != nil {
-				tar.to_put_ <- task
 			}
 		case <-time.After(time.Second * 5):
 			continue
@@ -126,7 +123,7 @@ func (tar *worker) serve() {
 func (tar *worker) registerd(task *sqlmap.Task) bool {
 	query := "select * from reg where id=$1"
 	rows, err := tar.link_.Exec(context.Background(),
-		query, task.Sender)
+		query, task.At)
 	if err != nil {
 		task.State = err.Error()
 	}
@@ -142,39 +139,39 @@ func (tar *worker) act_register(task *sqlmap.Task) {
 		task.State = "rejected"
 		task.Feedback = "another using"
 	} else {
-		task.Query = "insert into reg(id,password)" +
+		query := "insert into reg(id,password)" +
 			"values($1, $2)"
 		fb, err := tar.link_.Exec(context.Background(),
-			task.Query, task.Sender, task.Password)
+			query, task.At, task.Password)
 		if err != nil {
 			task.State = err.Error()
 		} else if fb.RowsAffected() > 0 {
-			task.State = "registered"
-			task.Feedback = "registration success"
+			task.State = "registration success"
 		}
 	}
-	task.Query = ""
+	task.Message = ""
 	task.Password = ""
+	tar.respond(task)
 }
 
 func (tar *worker) act_login(task *sqlmap.Task) {
-	task.Query = "select * from reg where id=$1 and password=$2"
+	query := "select * from reg where id=$1 and password=$2"
 	fb, err := tar.link_.Exec(context.Background(),
-		task.Query, task.Sender, task.Password)
+		query, task.At, task.Password)
 	if err != nil {
 		task.State = err.Error()
 	} else if fb.RowsAffected() > 0 {
-		task.State = "logined"
-		task.Feedback = "login success"
+		task.State = "login success"
 		tar.online_ = true
-		tar.checker_.Link(tar.index_, task.Sender)
+		tar.checker_.Link(tar.index_, task.At) // ID热映射
 	} else {
 		task.State = "rejected"
 		task.Feedback = "wrong password or wrong id"
 		tar.online_ = false
 	}
-	task.Query = ""
+	task.Message = ""
 	task.Password = ""
+	tar.respond(task)
 }
 
 func (tar *worker) act_pass(task *sqlmap.Task) {
@@ -183,62 +180,85 @@ func (tar *worker) act_pass(task *sqlmap.Task) {
 		task.Feedback = "not logined"
 		return
 	}
-	task.Query = "insert into message(id,receiver,message)" +
+	query := "insert into message(id,receiver,message)" +
 		"values($1, $2, $3)"
 	fb, err := tar.link_.Exec(context.Background(),
-		task.Query, task.Sender, task.Receiver, task.Message)
+		query, task.Sender, task.Receiver, task.Message)
 	if err != nil {
 		task.State = err.Error()
 	} else if fb.RowsAffected() > 0 {
-		task.State = "passed"
-		task.Feedback = "pass success"
+		task.State = "pass success"
 		tar.to_put_ = tar.checker_.GetOut(task.Receiver)
 	}
+	task.Password = ""
+	tar.respond(task)
 }
 
-func (tar *worker) act_requesti(task *sqlmap.Task) {
+func (tar *worker) act_config(task *sqlmap.Task) {
 	if !tar.online_ {
 		task.State = "rejected"
 		task.Feedback = "not logined"
 		return
 	}
-	task.Query = "select $1 from reg where id=$2"
+
+	query := `
+		INSERT INTO config(id, name, image)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (id)
+		DO UPDATE SET name = $2, image = $3`
+
 	fb, err := tar.link_.Exec(context.Background(),
-		task.Query, task.ReqTar, task.ReqIndex)
+		query, task.At, task.Sender, task.ImageURL)
+
 	if err != nil {
 		task.State = err.Error()
-	} else {
-		task.State = "request success"
-		task.Image = []byte(fb.String())
+	} else if fb.RowsAffected() > 0 {
+		task.State = "config success"
+		tar.to_put_ = tar.checker_.GetOut(task.Receiver)
 	}
-
+	task.Password = ""
+	tar.respond(task)
 }
-
-func (tar *worker) act_requestm(task *sqlmap.Task) {
+func (tar *worker) act_addfriend(task *sqlmap.Task) {
 	if !tar.online_ {
 		task.State = "rejected"
 		task.Feedback = "not logined"
 		return
 	}
-	task.Query = "select message, timestamp from message where sender=$1 and receiver=$2"
-	rows, err := tar.link_.Exec(context.Background(),
-		task.Query, task.Sender, task.Receiver)
-	if err != nil {
-		task.State = err.Error()
-	} else {
-		task.State = "send message success"
-		task.Feedback = rows.String()
-	}
-	rows, err = tar.link_.Exec(context.Background(),
-		task.Query, task.Receiver, task.Sender)
-	if err != nil {
-		task.State = err.Error()
-	} else {
-		task.State = "sync message success"
-		task.Feedback = rows.String()
-	}
-}
 
+	// 防止重复添加
+	query := "SELECT * FROM friends WHERE user_id = $1 AND friend_id = $2"
+	rows, err := tar.link_.Exec(context.Background(), query, task.Sender, task.Receiver)
+	if err != nil {
+		task.State = err.Error()
+		return
+	}
+	if rows.RowsAffected() > 0 {
+		task.State = "rejected"
+		task.Feedback = "already added"
+		return
+	}
+
+	// 插入好友关系（双向）
+	query = `INSERT INTO friends(user_id, friend_id, signature, regnature)
+		VALUES ($1, $2, true, false), ($2, $1, false, true)`
+	fb, err := tar.link_.Exec(context.Background(), query, task.Sender, task.Receiver)
+	if err != nil {
+		task.State = err.Error()
+	} else if fb.RowsAffected() > 0 {
+		task.State = "add friend success"
+		tar.to_put_ = tar.checker_.GetOut(task.Receiver)
+	}
+	task.Password = ""
+	tar.respond(task)
+}
 func (tar *worker) act_sync(task *sqlmap.Task) {
 
+}
+
+func (tar *worker) respond(task *sqlmap.Task) {
+	tar.back_put_ <- *task
+	if tar.to_put_ != nil {
+		tar.to_put_ <- *task
+	}
 }

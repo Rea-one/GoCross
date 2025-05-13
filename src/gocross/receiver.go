@@ -48,6 +48,7 @@ func (tar *receiver) Init(id int, conn net.Conn, mnc *mnConn,
 func (tar *receiver) Start() {
 	go tar.write()
 	go tar.read()
+	log.Printf("receiver已启动 id: %d", tar.id_)
 }
 
 func (tar *receiver) read() {
@@ -119,7 +120,7 @@ func (tar *receiver) read() {
 				Message:   "图片已上传至 MinIO",
 				Receiver:  "",
 				Sender:    "",
-				State:     "success",
+				State:     "image",
 				Timestamp: "",
 			}
 			feedbackBytes, err := json.Marshal(tar.feedback_)
@@ -131,11 +132,8 @@ func (tar *receiver) read() {
 		default:
 			// 处理普通查询
 			new_task := sqlmap.Task{
-				ID:       float64(tar.id_) / float64(tar.counter_),
-				State:    "cross received",
-				Ttype:    "pass",
 				Deadline: time.Now().Add(time.Second * 10),
-				Query:    mess,
+				Message:  mess,
 			}
 			tar.ipasser_ <- new_task
 		}
@@ -158,13 +156,15 @@ func (tar *receiver) write() {
 			// 	tar.conn_.Write([]byte(task.GetState()))
 			// }
 			tar.feedback_ = feedback{
-				Image:     task.ImageID,
-				Message:   task.Message,
-				Receiver:  task.Sender,
-				Sender:    task.Receiver,
+				At:        task.At,
+				Sender:    task.Sender,
+				Receiver:  task.Receiver,
 				State:     task.GetState(),
 				Timestamp: task.TimeStamp,
+				Message:   task.Message,
+				Image:     task.ImageID,
 			}
+			log.Printf("返回信息状态： %v", tar.feedback_.State)
 			feedbackBytes, err := json.Marshal(tar.feedback_)
 			if err != nil {
 				log.Printf("序列化 feedback 失败: %v", err)
