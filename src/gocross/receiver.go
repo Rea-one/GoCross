@@ -43,7 +43,6 @@ func (tar *receiver) Init(id int, conn net.Conn, mnc *mnConn,
 	tar.ipasser_ = ip
 	tar.opasser_ = op
 	tar.counter_ = 1
-	// tar.release_ = make(chan int, 10)
 	log.Print("receiver 初始化完成")
 }
 
@@ -64,6 +63,7 @@ func (tar *receiver) read() {
 			tar.Stop() // 主动调用 Stop() 释放资源
 			break
 		}
+
 		data := make([]byte, n)
 		copy(data, buf[:n])
 

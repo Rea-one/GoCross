@@ -1,6 +1,8 @@
 package sqlmap
 
-import "strings"
+import (
+	"strings"
+)
 
 type ActSqlMap interface {
 	Init()
@@ -50,9 +52,9 @@ func (tar *SqlMap) analyze(message string) string {
 
 func (tar *SqlMap) Ana(task *Task) {
 	var cursor *string
-
 	// 将 Query 分割为 token
 	tokens := strings.Fields(task.Message)
+	task.Message = ""
 	switch len(tokens) {
 	case 0:
 		task.State = "reject"
