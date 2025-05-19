@@ -43,6 +43,7 @@ func (tar *receiver) Init(id int, conn net.Conn, mnc *mnConn,
 	tar.ipasser_ = ip
 	tar.opasser_ = op
 	tar.counter_ = 1
+	// tar.release_ = make(chan int, 10)
 	log.Print("receiver 初始化完成")
 }
 
@@ -155,37 +156,93 @@ func (tar *receiver) read() {
 }
 
 func (tar *receiver) write() {
-	go tar.waitBear()
+	go tar.waitBeat()
 	for !tar.stop_ {
 		select {
 		case task := <-tar.opasser_:
-			tar.feedback_ = feedback{
-				At:        task.At,
-				Sender:    task.Sender,
-				Receiver:  task.Receiver,
-				State:     task.GetState(),
-				Timestamp: task.TimeStamp,
-				Message:   task.Message,
-				Image:     task.ImageID,
+			switch task.Ttype {
+			case "pass":
+				tar.write_pass(task)
+			case "add friend":
+				tar.write_addFriend(task)
+			case "response add friend":
+				tar.write_resAddFriend(task)
+			default:
+				tar.write_single(task)
 			}
-			log.Printf("返回信息状态： %v", tar.feedback_.State)
-			feedbackBytes, err := json.Marshal(tar.feedback_)
-			if err != nil {
-				log.Printf("序列化 feedback 失败: %v", err)
-				return
-			}
-			tar.conn_.Write(feedbackBytes)
 		default:
 			time.Sleep(time.Millisecond * 300)
 		}
 	}
 }
 
+func (tar *receiver) write_single(task sqlmap.Task) {
+	feedbackBytes, err := json.Marshal(feedback{
+		At:        task.At,
+		Sender:    task.Sender,
+		Receiver:  task.Receiver,
+		State:     task.GetState(),
+		Timestamp: task.TimeStamp,
+		Message:   task.Message,
+		Image:     task.ImageURL,
+	})
+	if err != nil {
+		log.Printf("序列化 feedback 失败: %v", err)
+		return
+	}
+	tar.conn_.Write(feedbackBytes)
+}
+
+func (tar *receiver) write_pass(task sqlmap.Task) {
+	feedbackBytes, err := json.Marshal(feedback{
+		At:        task.At,
+		Sender:    task.Sender,
+		Receiver:  task.Receiver,
+		State:     task.GetState(),
+		Timestamp: task.TimeStamp,
+		Message:   task.Message,
+		Image:     task.ImageURL,
+	})
+	if err != nil {
+		log.Printf("序列化 feedback 失败: %v", err)
+		return
+	}
+	tar.conn_.Write(feedbackBytes)
+}
+func (tar *receiver) write_addFriend(task sqlmap.Task) {
+	feedbackBytes, err := json.Marshal(feedback{
+		At:        task.At,
+		Sender:    task.Sender,
+		Receiver:  task.Receiver,
+		State:     task.GetState(),
+		Timestamp: task.TimeStamp,
+	})
+	if err != nil {
+		log.Printf("序列化 feedback 失败: %v", err)
+		return
+	}
+	tar.conn_.Write(feedbackBytes)
+}
+
+func (tar *receiver) write_resAddFriend(task sqlmap.Task) {
+	feedbackBytes, err := json.Marshal(feedback{
+		At:        task.ImageID,
+		Sender:    task.Sender,
+		Receiver:  task.Receiver,
+		State:     task.GetState(),
+		Timestamp: task.TimeStamp,
+	})
+	if err != nil {
+		log.Printf("序列化 feedback 失败: %v", err)
+		return
+	}
+	tar.conn_.Write(feedbackBytes)
+}
 func (tar *receiver) isStopped() bool {
 	return tar.stop_
 }
 
-func (tar *receiver) waitBear() {
+func (tar *receiver) waitBeat() {
 	feedbackBytes, err := json.Marshal(feedback{
 		State: "ping",
 	})

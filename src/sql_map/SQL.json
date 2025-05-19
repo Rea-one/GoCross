@@ -10,6 +10,8 @@
         "rg": "register",
         "lg": "login",
         "p": "pass",
+        "ad": "add friend",
+        "rad": "response add friend",
         "rqm": "request message",
         "rqi": "request image",
         "ts": "timestamp",
