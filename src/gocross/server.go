@@ -24,7 +24,7 @@ func (tar *Server) Init() {
 		password_:  "123456",
 		pg_host_:   "127.0.0.1:5432",
 		mn_host_:   "127.0.0.1:25059",
-		host_:      "127.0.0.1:25054",
+		host_:      "0.0.0.0:25054",
 	}
 	tar.signal_ = make(chan string, 4)
 	tar.checker = new(Checker)

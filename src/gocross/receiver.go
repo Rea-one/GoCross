@@ -21,15 +21,16 @@ type Receiver interface {
 }
 
 type receiver struct {
-	id_       int
-	counter_  int
-	conn_     net.Conn
-	mnConn_   *mnConn
-	stop_     bool
-	release_  chan int
-	ipasser_  chan sqlmap.Task
-	opasser_  chan sqlmap.Task
-	feedback_ feedback
+	id_           int
+	counter_      int
+	conn_         net.Conn
+	mnConn_       *mnConn
+	stop_         bool
+	release_      chan int
+	ipasser_      chan sqlmap.Task
+	opasser_      chan sqlmap.Task
+	feedback_     feedback
+	lastHeartbeat time.Time // 记录最后一次收到心跳的时间
 }
 
 func (tar *receiver) Init(id int, conn net.Conn, mnc *mnConn,
@@ -54,9 +55,12 @@ func (tar *receiver) Start() {
 func (tar *receiver) read() {
 	buf := make([]byte, 64*1024) // 增大缓冲区以适应图像
 	for !tar.stop_ {
+		// 设置读取超时
+		tar.conn_.SetReadDeadline(time.Now().Add(10 * time.Second))
 		n, err := tar.conn_.Read(buf)
 		if err != nil {
-			tar.conn_.Close()
+			log.Printf("读取数据失败: %v", err)
+			tar.Stop() // 主动调用 Stop() 释放资源
 			break
 		}
 		data := make([]byte, n)
@@ -66,6 +70,10 @@ func (tar *receiver) read() {
 		switch {
 		case mess == "nomore":
 			// 处理终止信号
+			tar.Stop()
+		case mess == "pong":
+			// 收到心跳响应，更新 lastHeartbeat
+			tar.lastHeartbeat = time.Now()
 		case strings.HasPrefix(mess, "image "):
 			// 提取 ImageID
 			imageID := strings.TrimPrefix(mess, "image ")
@@ -137,24 +145,20 @@ func (tar *receiver) read() {
 			}
 			tar.ipasser_ <- new_task
 		}
+
+		// 检查心跳是否超时
+		if time.Since(tar.lastHeartbeat) > 15*time.Second {
+			log.Printf("心跳超时，关闭 receiver ID: %d", tar.id_)
+			tar.Stop()
+		}
 	}
 }
 
 func (tar *receiver) write() {
+	go tar.waitBear()
 	for !tar.stop_ {
 		select {
 		case task := <-tar.opasser_:
-			// switch task.GetState() {
-			// case "nomore":
-			// 	log.Printf("%v 号接收者关闭连接中", tar.id_)
-			// 	tar.Stop()
-			// case "request image":
-			// 	// 预告图片
-			// 	tar.conn_.Write([]byte("image " + task.ImageID))
-			// 	tar.conn_.Write(task.Image)
-			// default:
-			// 	tar.conn_.Write([]byte(task.GetState()))
-			// }
 			tar.feedback_ = feedback{
 				At:        task.At,
 				Sender:    task.Sender,
@@ -174,6 +178,28 @@ func (tar *receiver) write() {
 		default:
 			time.Sleep(time.Millisecond * 300)
 		}
+	}
+}
+
+func (tar *receiver) isStopped() bool {
+	return tar.stop_
+}
+
+func (tar *receiver) waitBear() {
+	feedbackBytes, err := json.Marshal(feedback{
+		State: "ping",
+	})
+	for !tar.isStopped() {
+		time.Sleep(5 * time.Second) // 每5秒发送一次心跳
+		if tar.isStopped() {
+			return
+		}
+
+		if err != nil {
+			log.Printf("序列化 feedback 失败: %v", err)
+			return
+		}
+		tar.conn_.Write(feedbackBytes)
 	}
 }
 

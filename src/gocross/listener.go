@@ -55,6 +55,7 @@ func (tar *listener) Init(signal chan string, iom *iomap, mess *cimess) {
 	}
 	tar.listener_ = lsn
 	tar.mnConns_.Init(mess.pg_host_, tar.mns_num_)
+	tar.release_ = make(chan int, 10)
 
 	log.Printf("listener 初始化成功")
 }
