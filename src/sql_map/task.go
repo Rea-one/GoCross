@@ -5,8 +5,7 @@ import (
 )
 
 type ActTask interface {
-	GetID() float64
-	GetQuery() string
+	GetID() string
 	GetState() string
 	GetFeedback() string
 	SetState(string)
@@ -14,13 +13,13 @@ type ActTask interface {
 }
 
 type Task struct {
-	ID        float64 // 任务唯一标识
+	ID        string
+	At        string
 	State     string
 	Sender    string
 	Receiver  string
 	Password  string
 	Ttype     string
-	Query     string // 自定义语句，遵循sql_map的处理规则
 	Message   string
 	Feedback  string
 	ImageID   string
@@ -29,12 +28,8 @@ type Task struct {
 	Deadline  time.Time // 超时控制
 }
 
-func (tar *Task) GetID() float64 {
+func (tar *Task) GetID() string {
 	return tar.ID
-}
-
-func (tar *Task) GetQuery() string {
-	return tar.Query
 }
 
 func (tar *Task) GetState() string {
