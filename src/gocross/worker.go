@@ -1,8 +1,9 @@
 package gocross
 
 import (
+	sqlmap "GoCross/src/sql_map"
 	"context"
-	"now/sqlmap"
+
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"

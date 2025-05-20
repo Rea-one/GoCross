@@ -1,12 +1,13 @@
 package gocross
 
 import (
+	sqlmap "GoCross/src/sql_map"
 	"bytes"
 	"context"
 	"encoding/json"
 	"log"
 	"net"
-	"now/sqlmap"
+
 	"strings"
 	"time"
 

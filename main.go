@@ -1,7 +1,7 @@
 package main
 
 import (
-	"now/gocross"
+	"GoCross/src/gocross"
 )
 
 func main() {

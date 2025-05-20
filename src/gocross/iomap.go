@@ -1,6 +1,6 @@
 package gocross
 
-import "now/sqlmap"
+import sqlmap "GoCross/src/sql_map"
 
 type IOMap interface {
 	Init()

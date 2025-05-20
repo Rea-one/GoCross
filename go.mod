@@ -1,16 +1,10 @@
-module main
+module GoCross
 
 go 1.24.2
 
-require now/gocross v0.0.0
-
-require now/sqlmap v0.0.0 // indirect
 
 require github.com/jackc/pgx/v5 v5.7.4 // indirect
 
-replace now/gocross => ./src/gocross
-
-replace now/sqlmap => ./src/sql_map
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
