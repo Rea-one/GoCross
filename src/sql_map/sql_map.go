@@ -50,6 +50,7 @@ func (tar *SqlMap) analyze(message string) string {
 	return result
 }
 
+// 最外封装
 func (tar *SqlMap) Ana(task *Task) {
 	var cursor *string
 	// 将 Query 分割为 token

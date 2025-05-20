@@ -11,6 +11,7 @@ type ActReader interface {
 }
 
 type Reader struct {
+	// 根据json文件初始化，形成sql过滤与翻译
 	Classes map[string]string `json:"classes"`
 	Rejects map[string]bool   `json:"rejects"`
 }
@@ -26,6 +27,7 @@ func (tar *Reader) Init(path string) {
 	}
 }
 
+// 将缩写扩写， 比如 "a" -> "at"
 func (tar *Reader) To_SQL(message string) string {
 	_, r := tar.Rejects[message]
 	mess, c := tar.Classes[message]

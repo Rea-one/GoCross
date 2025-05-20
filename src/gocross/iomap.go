@@ -20,13 +20,18 @@ type ActChecker interface {
 	GetOut(string)
 	getout(string)
 }
+
+// 交互通道集中封装
 type iomap struct {
 	imp_ *map[string]chan sqlmap.Task
 	omp_ *map[string]chan sqlmap.Task
 }
 
+// 二次封装IOMap
 type Checker struct {
-	iom_   *iomap
+	// 映射表
+	iom_ *iomap
+	// 转换映射表
 	token_ map[string]string
 }
 
@@ -38,6 +43,7 @@ func (tar *iomap) Init() {
 	tar.Register("default")
 }
 
+// 在映射表中注册一个IO
 func (tar *iomap) Register(id string) {
 	if _, ok := (*tar.imp_)[id]; !ok {
 		(*tar.imp_)[id] = make(chan sqlmap.Task)
@@ -69,6 +75,7 @@ func (tar *Checker) Link(id string, token string) {
 	tar.token_[token] = id
 }
 
+// 使用ID注册
 func (tar *Checker) Register(token string) {
 	tar.iom_.Register(token)
 }

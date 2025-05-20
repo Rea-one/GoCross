@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// 缺陷： 	没有使用ORM，容易sql注入 很多方法未验证
 type Worker interface {
 	Start()
 	Stop()
@@ -63,11 +64,16 @@ func (tar *worker) Init(id int, index string, checker *Checker,
 	tar.link_ = link
 	tar.index_ = index
 	tar.checker_ = checker
+	// 输入通道
 	tar.input_ = tar.checker_.getin(tar.index_)
+	// 返回通道，默认与输入通道相同
 	tar.back_put_ = tar.checker_.getout(tar.index_)
+	// 传递通道，默认为空
 	tar.to_put_ = nil
+	// 在线状态
 	tar.online_ = false
 	tar.release_ = rsl
+	// sql语句表
 	tar.ana_ = sqlmap.SqlMap{}
 	tar.ana_.Init()
 	tar.counter = 0
@@ -85,6 +91,7 @@ func (tar *worker) Init(id int, index string, checker *Checker,
 
 func (tar *worker) Change(index string) {
 	tar.index_ = index
+	// 与init()的机制类似
 	tar.input_ = tar.checker_.getin(tar.index_)
 	tar.back_put_ = tar.checker_.getout(tar.index_)
 	tar.to_put_ = nil
@@ -93,9 +100,14 @@ func (tar *worker) Change(index string) {
 func (tar *worker) serve() {
 	for !tar.stop_ {
 		select {
+		// 任务处理
 		case task := <-tar.input_:
 			tar.counter++
+
+			// 转化语句
 			tar.act_task(&task)
+
+			// 根据类型执行对应操作
 			switch task.Ttype {
 			case "nomore":
 				tar.Stop()

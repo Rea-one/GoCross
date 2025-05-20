@@ -35,7 +35,9 @@ type receiver struct {
 
 func (tar *receiver) Init(id int, conn net.Conn, mnc *mnConn,
 	release chan int, ip chan sqlmap.Task, op chan sqlmap.Task) {
+	// socket 连接
 	tar.conn_ = conn
+	// 未使用的minio的连接
 	tar.mnConn_ = mnc
 	tar.id_ = id
 	tar.stop_ = false
@@ -52,6 +54,7 @@ func (tar *receiver) Start() {
 	log.Printf("receiver已启动 id: %d", tar.id_)
 }
 
+// 这里只有少数情况是在这处理，多数在worker中处理
 func (tar *receiver) read() {
 	buf := make([]byte, 64*1024) // 增大缓冲区以适应图像
 	for !tar.stop_ {
@@ -155,11 +158,14 @@ func (tar *receiver) read() {
 	}
 }
 
+// 数据返回采用json格式，与接收格式不同
 func (tar *receiver) write() {
+	// 启动心跳检测
 	go tar.waitBeat()
 	for !tar.stop_ {
 		select {
 		case task := <-tar.opasser_:
+			// 根据类型处理
 			switch task.Ttype {
 			case "pass":
 				tar.write_pass(task)

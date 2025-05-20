@@ -17,7 +17,9 @@ type Manager interface {
 }
 
 type manager struct {
-	signal_  chan string
+	// 与listener的通信
+	signal_ chan string
+	// 映射表，保证worker与receiver通过ID或IP唯一访问
 	checker_ *Checker
 
 	conn_pool_ *pgxpool.Pool
@@ -86,6 +88,7 @@ func (tar *manager) serve() {
 			select {
 			case IP := <-tar.signal_:
 				now := tar.workers.Head()
+				// 更换worker的工作对象，缺乏保障机制，但在一般情况下此时worker处于等待状态
 				now.data.Change(IP)
 				tar.workers.Move_tail(now)
 				tickerFast.Reset(10 * time.Millisecond) // 保持高频

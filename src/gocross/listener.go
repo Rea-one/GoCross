@@ -16,22 +16,29 @@ type Listener interface {
 }
 
 type listener struct {
+	// receiver ID 池 每个receiver都会有一个ID
 	rcv_id_pool_ mQueue[int]
 	host_        string
 	mn_host_     string
-	receivers_   *mList[*receiver]
+	// 使用链表保存receiver
+	receivers_ *mList[*receiver]
 	// 本地表不使用指针保存
-	rcv_map_   map[int]*mListNode[*receiver]
-	io_map_    *iomap
-	stop_      bool
-	listener_  net.Listener
-	release_   chan int
-	signal_    chan string
+	rcv_map_  map[int]*mListNode[*receiver]
+	io_map_   *iomap
+	stop_     bool
+	listener_ net.Listener
+	// listener 释放信号
+	release_ chan int
+	// 与manager通信，当manager收到信号是就会开始调度worker完成工作
+	signal_ chan string
+	// 限流
 	current_rs int
 	max_rs_    int
-	counter    int
-	mns_num_   int
-	mnConns_   mnConn
+	// 用于调试时观察运行情况
+	counter int
+	// 未使用
+	mns_num_ int
+	mnConns_ mnConn
 }
 
 func (tar *listener) Init(signal chan string, iom *iomap, mess *cimess) {
@@ -93,6 +100,7 @@ func (tar *listener) serve() {
 	}
 }
 
+// new action 新建一个receiver
 func (tar *listener) naction(conn net.Conn) {
 	IP := conn.RemoteAddr().String()
 	id := tar.rcv_id_pool_.The()
@@ -124,6 +132,7 @@ func (tar *listener) naction(conn net.Conn) {
 	tar.current_rs++
 }
 
+// delete action 回收一个receiver的ID
 func (tar *listener) daction() {
 	select {
 	case rls := <-tar.release_:
